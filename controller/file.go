@@ -65,7 +65,7 @@ func MenuUploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	GitHubAccessToken := config.GHAccessToken
 	GitHubAuthorName := "Rolly Maulana Awangga"
 	GitHubAuthorEmail := "awangga@gmail.com"
-	githubOrg := "jualinmang"
+	githubOrg := "gobizid"
 	githubRepo := "img"
 	pathFile := prj.Name + "/menu/" + hashedFileName + header.Filename[strings.LastIndex(header.Filename, "."):] // Append the original file extension
 	replace := true
