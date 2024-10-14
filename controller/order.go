@@ -35,7 +35,7 @@ func HandleOrder(w http.ResponseWriter, r *http.Request) {
 	//kirim pesan ke tenant
 	message := "*Pesanan Masuk " + namalapak + "*\n" + orderRequest.User.Name + "\n" + orderRequest.User.Whatsapp + "\n" + orderRequest.User.Address + "\n" + createOrderMessage(orderRequest.Orders) + "\nTotal: " + strconv.Itoa(orderRequest.Total) + "\nPembayaran: " + orderRequest.PaymentMethod
 	newmsg := model.SendText{
-		To:       "628111269691",
+		To:       "6282184952582",
 		IsGroup:  false,
 		Messages: message,
 	}
