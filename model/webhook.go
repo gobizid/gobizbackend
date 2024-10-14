@@ -104,3 +104,12 @@ type VerifyRequest struct {
 	PhoneNumber string `json:"phonenumber"`
 	Password    string `json:"password"`
 }
+
+type MenuItemtes struct {
+	Name          string  `json:"name"`
+	Price         int     `json:"price"`
+	OriginalPrice int     `json:"originalPrice"`
+	Rating        float32 `json:"rating"`
+	Sold          string  `json:"sold"`
+	Image         string  `json:"image"`
+}
