@@ -65,6 +65,14 @@ func GetDataTesting(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Tambahkan pengecekan apakah data kosong
+	if len(data) == 0 {
+		var respn model.Response
+		respn.Status = "Error: Data menu kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
 	// Jika data ditemukan, kirimkan data dalam bentuk JSON
 	at.WriteJSON(respw, http.StatusOK, data)
 }

@@ -106,10 +106,10 @@ type VerifyRequest struct {
 }
 
 type MenuItemtes struct {
-	Name          string  `json:"name"`
-	Price         int     `json:"price"`
-	OriginalPrice int     `json:"originalPrice"`
-	Rating        float32 `json:"rating"`
-	Sold          string  `json:"sold"`
-	Image         string  `json:"image"`
+	Name          string  `json:"name" bson:"name"`
+	Price         int     `json:"price" bson:"price"`
+	OriginalPrice int     `json:"originalPrice" bson:"originalPrice"`
+	Rating        float32 `json:"rating" bson:"rating"`
+	Sold          string  `json:"sold" bson:"sold"`
+	Image         string  `json:"image" bson:"image"`
 }
