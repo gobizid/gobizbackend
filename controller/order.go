@@ -13,6 +13,7 @@ import (
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/jualin"
 	"github.com/gocroot/model"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Fungsi untuk menangani request order
@@ -64,4 +65,21 @@ func createOrderMessage(orders []jualin.Order) string {
 
 	// Gabungkan semua orders menjadi satu string dengan new line sebagai separator
 	return strings.Join(orderStrings, "\n")
+}
+
+func GetDataOrder(w http.ResponseWriter, r *http.Request) {
+	// Variabel untuk menampung hasil query
+	var orders []jualin.Order
+
+	// Menggunakan helper GetAllDoc untuk mengambil data dari MongoDB
+	filter := bson.M{} // Filter kosong untuk mengambil semua dokumen
+	orders, err := atdb.GetAllDoc[[]jualin.Order](config.Mongoconn, "order", filter)
+	if err != nil {
+		http.Error(w, "Gagal mendapatkan data order", http.StatusInternalServerError)
+		return
+	}
+
+	// Mengembalikan data order dalam bentuk JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(orders)
 }

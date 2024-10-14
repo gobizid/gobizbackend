@@ -91,6 +91,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// order
 	case method == "POST" && at.URLParam(path, "/data/order/:namalapak"):
 		controller.HandleOrder(w, r)
+	case method == "POST" && at.URLParam(path, "/data/order/getall"):
+		controller.GetDataOrder(w, r)
 
 		//disabel pendaftaran
 		//case method == "POST" && path == "/data/user":
