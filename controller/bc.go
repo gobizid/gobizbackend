@@ -55,7 +55,7 @@ func GetDataSenders(respw http.ResponseWriter, req *http.Request) {
 
 func GetDataTesting(respw http.ResponseWriter, req *http.Request) {
 	// Mendapatkan data dari MongoDB
-	data, err := atdb.GetAllDoc[[]model.MenuItemtes](config.Mongoconn, "menu", primitive.M{})
+	data, err := atdb.GetAllDoc[[]model.MenuItemtes](config.Mongoconn, "menu", primitive.M{"name": "Sayur Lodeh Gaming"})
 	if err != nil {
 		// Jika terjadi error saat mendapatkan data, kembalikan response error
 		var respn model.Response
