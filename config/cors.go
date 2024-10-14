@@ -7,7 +7,7 @@ import (
 // Daftar origins yang diizinkan
 var Origins = []string{
 	"https://kb.pd.my.id",
-	"https://pd.my.id",
+	"https://go.biz.id",
 	"https://jual.in.my.id",
 }
 
