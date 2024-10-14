@@ -20,6 +20,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// testing
+
 func Auth(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Token string `json:"token"`
