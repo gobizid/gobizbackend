@@ -80,7 +80,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/data/pushrepo/kemarin":
 		controller.GetYesterdayDistincWAGroup(w, r)
 	case method == "GET" && path == "/data/menuitemtes":
-		controller.GetDataTesting(w, r)
+		controller.GetDataMenu(w, r)
 	//helpdesk
 	//mendapatkan data tiket
 	case method == "GET" && at.URLParam(path, "/data/tiket/closed/:id"):
