@@ -53,30 +53,6 @@ func GetDataSenders(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, existingprjs)
 }
 
-func GetDataTesting(respw http.ResponseWriter, req *http.Request) {
-	// Mendapatkan data dari MongoDB
-	data, err := atdb.GetAllDoc[[]model.MenuItemtes](config.Mongoconn, "menu", primitive.M{"name": "Sayur Lodeh Gaming"})
-	if err != nil {
-		// Jika terjadi error saat mendapatkan data, kembalikan response error
-		var respn model.Response
-		respn.Status = "Error : Data menu tidak ditemukan"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	// Tambahkan pengecekan apakah data kosong
-	if len(data) == 0 {
-		var respn model.Response
-		respn.Status = "Error: Data menu kosong"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	// Jika data ditemukan, kirimkan data dalam bentuk JSON
-	at.WriteJSON(respw, http.StatusOK, data)
-}
-
 func GetDataSendersTerblokir(respw http.ResponseWriter, req *http.Request) {
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
