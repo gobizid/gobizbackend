@@ -142,7 +142,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.VerifyPasswordHandler(w, r)
 	case method == "POST" && path == "/auth/resend":
 		controller.ResendPasswordHandler(w, r)
-	// Google Auth
+		// Google Auth
+
+		// menu and toko
+	case method == "POST" && path == "/auth/create/toko":
+		controller.CreateToko(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

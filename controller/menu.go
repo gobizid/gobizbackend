@@ -83,6 +83,62 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, respn)
 }
 
+func CreateToko(respw http.ResponseWriter, req *http.Request) {
+	// Validasi token
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = at.GetSecretFromHeader(req)
+		respn.Location = "Decode Token Error"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Decode body request menjadi struct Toko
+	var tokoInput model.Toko
+	err = json.NewDecoder(req.Body).Decode(&tokoInput)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Body tidak valid"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Cek apakah user yang melakukan request ada di koleksi "user" berdasarkan nomor telepon
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	// Set user yang membuat toko
+	tokoInput.User = []model.Userdomyikado{docuser}
+
+	// Jika data menu tidak ada (kosong atau null), inisialisasi sebagai array kosong
+	if tokoInput.Menu == nil {
+		tokoInput.Menu = []model.Menu{}
+	}
+
+	// Insert data toko ke database
+	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Gagal Insert Database"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotModified, respn)
+		return
+	}
+
+	// Response sukses
+	at.WriteJSON(respw, http.StatusOK, dataToko)
+}
+
 func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 	// Mendapatkan data dari MongoDB berdasarkan parameter yang diberikan
 	data, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{"name": "Sayur Lodeh Gaming"})
