@@ -110,6 +110,6 @@ type MenuItemtes struct {
 	Price         int     `json:"price" bson:"price"`
 	OriginalPrice int     `json:"originalPrice" bson:"originalPrice"`
 	Rating        float64 `json:"rating" bson:"rating"`
-	Sold          string  `json:"sold" bson:"sold"`
+	Sold          int     `json:"sold" bson:"sold"`
 	Image         string  `json:"image" bson:"image"`
 }
