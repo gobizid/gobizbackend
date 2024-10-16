@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
@@ -15,7 +16,6 @@ import (
 )
 
 func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
-	// Dekode token dari header untuk memverifikasi pengguna
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
@@ -27,10 +27,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Debugging: Print Payload ID
-	fmt.Println("Payload ID:", payload.Id)
-
-	// Decode body request menjadi struct Toko
 	var tokoInput model.Toko
 	err = json.NewDecoder(req.Body).Decode(&tokoInput)
 	if err != nil {
@@ -41,7 +37,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user yang melakukan request ada di koleksi "user" berdasarkan nomor telepon dari token (payload.Id)
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -51,10 +46,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Debugging: Print user data from docuser
-	fmt.Printf("Docuser: %+v\n", docuser)
-
-	// Menggunakan $elemMatch untuk mencari toko berdasarkan nomor telepon di dalam array user
 	filter := bson.M{
 		"user": bson.M{
 			"$elemMatch": bson.M{
@@ -62,10 +53,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
-	// Debugging: Print filter for MongoDB query
-	fmt.Printf("Filter: %+v\n", filter)
 
-	// Cek apakah toko ada
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
@@ -75,13 +63,11 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Jika toko ditemukan, tambahkan menu baru ke array menu yang sudah ada
 	existingToko.Menu = append(existingToko.Menu, tokoInput.Menu...)
 
-	// Update data menu toko di database
 	update := bson.M{
 		"$set": bson.M{
-			"menu": existingToko.Menu, // Update dengan menu yang baru ditambahkan
+			"menu": existingToko.Menu,
 		},
 	}
 	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
@@ -93,7 +79,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Response sukses jika data menu berhasil diupdate
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil ditambahkan ke toko",
@@ -176,6 +161,67 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Response sukses dengan data lengkap
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
+	// Dekode token dari header untuk memverifikasi pengguna
+	// payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	// if err != nil {
+	// 	var respn model.Response
+	// 	respn.Status = "Error: Token Tidak Valid"
+	// 	respn.Info = at.GetSecretFromHeader(req)
+	// 	respn.Location = "Decode Token Error"
+	// 	respn.Response = err.Error()
+	// 	at.WriteJSON(respw, http.StatusForbidden, respn)
+	// 	return
+	// }
+
+	// Ambil parameter slug dari URL params
+	slug := chi.URLParam(req, "slug")
+	if slug == "" {
+		var respn model.Response
+		respn.Status = "Error: Slug tidak ditemukan"
+		respn.Response = "Slug tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Cari toko berdasarkan slug
+	var toko model.Toko
+	err := config.Mongoconn.Collection("toko").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		respn.Response = "Slug: " + slug + ", Error: " + err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Verifikasi apakah toko tersebut milik pengguna berdasarkan nomor telepon
+	// phoneNumber := payload.Id
+	// isOwner := false
+	// for _, user := range toko.User {
+	// 	if user.PhoneNumber == phoneNumber {
+	// 		isOwner = true
+	// 		break
+	// 	}
+	// }
+
+	// if !isOwner {
+	// 	var respn model.Response
+	// 	respn.Status = "Error: Pengguna tidak memiliki akses ke toko ini"
+	// 	respn.Response = "PhoneNumber: " + phoneNumber + " tidak sesuai dengan toko"
+	// 	at.WriteJSON(respw, http.StatusForbidden, respn)
+	// 	return
+	// }
+
+	// Jika toko ditemukan dan pengguna memiliki akses, kembalikan data menu toko tersebut
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu berhasil diambil",
+		"data":    toko.Menu,
+	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
