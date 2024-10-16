@@ -165,24 +165,12 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
-	// Dekode token dari header untuk memverifikasi pengguna
-	// payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-	// if err != nil {
-	// 	var respn model.Response
-	// 	respn.Status = "Error: Token Tidak Valid"
-	// 	respn.Info = at.GetSecretFromHeader(req)
-	// 	respn.Location = "Decode Token Error"
-	// 	respn.Response = err.Error()
-	// 	at.WriteJSON(respw, http.StatusForbidden, respn)
-	// 	return
-	// }
-
 	// Ambil parameter slug dari URL params
 	slug := chi.URLParam(req, "slug")
 	if slug == "" {
 		var respn model.Response
 		respn.Status = "Error: Slug tidak ditemukan"
-		respn.Response = "Slug tidak disertakan dalam permintaan"
+		respn.Response = "Slug tidak disertakan dalam permintaan" + slug
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
@@ -197,24 +185,6 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
-
-	// Verifikasi apakah toko tersebut milik pengguna berdasarkan nomor telepon
-	// phoneNumber := payload.Id
-	// isOwner := false
-	// for _, user := range toko.User {
-	// 	if user.PhoneNumber == phoneNumber {
-	// 		isOwner = true
-	// 		break
-	// 	}
-	// }
-
-	// if !isOwner {
-	// 	var respn model.Response
-	// 	respn.Status = "Error: Pengguna tidak memiliki akses ke toko ini"
-	// 	respn.Response = "PhoneNumber: " + phoneNumber + " tidak sesuai dengan toko"
-	// 	at.WriteJSON(respw, http.StatusForbidden, respn)
-	// 	return
-	// }
 
 	// Jika toko ditemukan dan pengguna memiliki akses, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
