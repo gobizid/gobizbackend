@@ -176,7 +176,7 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 
 	// Cari toko berdasarkan slug
 	var toko model.Toko
-	err := config.Mongoconn.Collection("toko").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
+	err := config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
