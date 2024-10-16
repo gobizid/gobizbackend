@@ -47,7 +47,8 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	filter := bson.M{"user.phonenumber": payload.Id} // Cari toko berdasarkan nomor telepon pemilik
+	// Mencari toko berdasarkan nomor telepon pemilik yang ada di dalam array "user"
+	filter := bson.M{"user": bson.M{"$elemMatch": bson.M{"phonenumber": payload.Id}}}
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		// Jika toko tidak ditemukan, kembalikan response error
