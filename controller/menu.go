@@ -48,13 +48,21 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	filter := bson.M{"user.phonenumber": payload.Id} // Cari toko berdasarkan nomor telepon pemilik
+	// Menggunakan $elemMatch untuk mencari toko berdasarkan nomor telepon di dalam array user
+	filter := bson.M{
+		"user": bson.M{
+			"$elemMatch": bson.M{
+				"phonenumber": payload.Id,
+			},
+		},
+	}
+
+	// Cek apakah toko ada
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
-		// Jika toko tidak ditemukan, kembalikan response error
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
-		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber + "data filter" + fmt.Sprintf("%v", filter)
+		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber + fmt.Sprintf("%v", filter)
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
