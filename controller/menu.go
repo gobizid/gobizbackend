@@ -66,7 +66,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	fmt.Printf("Filter: %+v\n", filter)
 
 	// Cek apakah toko ada
-	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -84,7 +84,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 			"menu": existingToko.Menu, // Update dengan menu yang baru ditambahkan
 		},
 	}
-	_, err = config.Mongoconn.Collection("toko").UpdateOne(req.Context(), filter, update)
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate data menu"
