@@ -52,6 +52,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// Jika toko tidak ditemukan, kembalikan response error
 		var respn model.Response
+		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber
 		respn.Status = "Error: Toko tidak ditemukan"
 		respn.Response = "Toko untuk pengguna ini tidak ditemukan"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
