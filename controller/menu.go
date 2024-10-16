@@ -47,24 +47,29 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Set user yang membuat toko
 	tokoInput.User = []model.Userdomyikado{docuser}
-	// Cek apakah toko sudah ada di database
-	filter := bson.M{"slug": tokoInput.Slug} // Mencari toko berdasarkan slug unik
-	// existingToko := model.Toko{}
-	// docuser, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter).Decode(&existingToko)
-	// if err != nil {
-	// 	// Jika toko tidak ditemukan, kembalikan response error
-	// 	var respn model.Response
-	// 	respn.Status = "Error: Data toko tidak ditemukan"
-	// 	respn.Response = err.Error()
-	// 	at.WriteJSON(respw, http.StatusNotFound, respn)
-	// 	return
-	// }
 
-	// Jika toko ditemukan, update data menu toko tersebut
+	// Cek apakah toko sudah ada di database berdasarkan slug
+	filter := bson.M{"slug": tokoInput.Slug}
+	existingToko := model.Toko{}
+	existingToko, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	if err != nil {
+		// Tangani error jika data toko tidak ditemukan
+		var respn model.Response
+		respn.Status = "Error: Data toko tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Jika toko ditemukan, tambahkan menu baru ke array menu yang sudah ada
+	existingToko.Menu = append(existingToko.Menu, tokoInput.Menu...)
+
+	// Update data menu toko di database
 	update := bson.M{
 		"$set": bson.M{
-			"menu": tokoInput.Menu, // Mengupdate data menu berdasarkan input
+			"menu": existingToko.Menu, // Update dengan menu yang baru ditambahkan
 		},
 	}
 	_, err = config.Mongoconn.Collection("toko").UpdateOne(req.Context(), filter, update)
@@ -77,10 +82,19 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Response sukses jika data menu berhasil diupdate
-	var respn model.Response
-	respn.Status = "Success: Data menu berhasil diupdate"
-	respn.Response = "Menu has been updated"
-	at.WriteJSON(respw, http.StatusOK, respn)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu berhasil ditambahkan ke toko",
+		"data": map[string]interface{}{
+			"id":        existingToko.ID.Hex(),
+			"nama_toko": existingToko.NamaToko,
+			"slug":      existingToko.Slug,
+			"alamat":    existingToko.Alamat,
+			"user":      existingToko.User,
+			"menu":      existingToko.Menu,
+		},
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
 }
 
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
@@ -135,8 +149,22 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Response sukses
-	at.WriteJSON(respw, http.StatusOK, dataToko)
+	// Buat response sukses dengan data yang lebih lengkap
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Toko berhasil dibuat",
+		"data": map[string]interface{}{
+			"id":        dataToko,
+			"nama_toko": tokoInput.NamaToko,
+			"slug":      tokoInput.Slug,
+			"alamat":    tokoInput.Alamat,
+			"user":      tokoInput.User, // informasi user
+			"menu":      tokoInput.Menu, // informasi menu
+		},
+	}
+
+	// Response sukses dengan data lengkap
+	at.WriteJSON(respw, http.StatusOK, response)
 }
 
 func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
