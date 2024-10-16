@@ -27,6 +27,9 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Debugging: Print Payload ID
+	fmt.Println("Payload ID:", payload.Id)
+
 	// Decode body request menjadi struct Toko
 	var tokoInput model.Toko
 	err = json.NewDecoder(req.Body).Decode(&tokoInput)
@@ -48,14 +51,19 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Debugging: Print user data from docuser
+	fmt.Printf("Docuser: %+v\n", docuser)
+
 	// Menggunakan $elemMatch untuk mencari toko berdasarkan nomor telepon di dalam array user
 	filter := bson.M{
 		"user": bson.M{
 			"$elemMatch": bson.M{
-				"phonenumber": payload.Id,
+				"phonenumber": bson.M{"$regex": payload.Id},
 			},
 		},
 	}
+	// Debugging: Print filter for MongoDB query
+	fmt.Printf("Filter: %+v\n", filter)
 
 	// Cek apakah toko ada
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
