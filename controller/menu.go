@@ -192,6 +192,7 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		"nama_toko": toko.NamaToko,
 		"slug":      toko.Slug,
 		"alamat":    toko.Alamat,
+		"owner":     toko.User,
 		"data":      toko.Menu,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
