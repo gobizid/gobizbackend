@@ -187,9 +187,12 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 
 	// Jika toko ditemukan, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
-		"status":  "success",
-		"message": "Menu berhasil diambil",
-		"data":    toko.Menu,
+		"status":    "success",
+		"message":   "Menu berhasil diambil",
+		"nama_toko": toko.NamaToko,
+		"slug":      toko.Slug,
+		"alamat":    toko.Alamat,
+		"data":      toko.Menu,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
