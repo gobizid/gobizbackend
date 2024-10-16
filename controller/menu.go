@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gocroot/config"
@@ -47,14 +48,13 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Mencari toko berdasarkan nomor telepon pemilik yang ada di dalam array "user"
-	filter := bson.M{"user": bson.M{"$elemMatch": bson.M{"phonenumber": payload.Id}}}
+	filter := bson.M{"user.phonenumber": payload.Id} // Cari toko berdasarkan nomor telepon pemilik
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		// Jika toko tidak ditemukan, kembalikan response error
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
-		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber
+		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber + "data filter" + fmt.Sprintf("%v", filter)
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
