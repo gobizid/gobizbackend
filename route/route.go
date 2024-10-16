@@ -145,9 +145,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// Google Auth
 
 		// menu and toko
-	case method == "POST" && path == "/auth/create/toko":
+	case method == "POST" && path == "/create/toko":
 		controller.CreateToko(w, r)
-	case method == "POST" && path == "/auth/add/menu":
+	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
 	default:
 		controller.NotFound(w, r)

@@ -37,7 +37,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user yang melakukan request ada di koleksi "user" berdasarkan nomor telepon
+	// Cek apakah user yang melakukan request ada di koleksi "user" berdasarkan nomor telepon dari token (payload.Id)
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -47,18 +47,13 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Set user yang membuat toko
-	tokoInput.User = []model.Userdomyikado{docuser}
-
-	// Cek apakah toko sudah ada di database berdasarkan slug
-	filter := bson.M{"slug": tokoInput.Slug}
-	existingToko := model.Toko{}
-	existingToko, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	filter := bson.M{"user.phonenumber": payload.Id} // Cari toko berdasarkan nomor telepon pemilik
+	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
-		// Tangani error jika data toko tidak ditemukan
+		// Jika toko tidak ditemukan, kembalikan response error
 		var respn model.Response
-		respn.Status = "Error: Data toko tidak ditemukan"
-		respn.Response = err.Error()
+		respn.Status = "Error: Toko tidak ditemukan"
+		respn.Response = "Toko untuk pengguna ini tidak ditemukan"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
@@ -90,7 +85,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 			"nama_toko": existingToko.NamaToko,
 			"slug":      existingToko.Slug,
 			"alamat":    existingToko.Alamat,
-			"user":      existingToko.User,
+			"user":      docuser,
 			"menu":      existingToko.Menu,
 		},
 	}
