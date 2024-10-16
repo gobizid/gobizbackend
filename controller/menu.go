@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi"
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
@@ -165,12 +164,12 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
-	// Ambil parameter slug dari URL params
-	slug := chi.URLParam(req, "slug")
+	// Ambil parameter slug dari query params, bukan URL params
+	slug := req.URL.Query().Get("slug")
 	if slug == "" {
 		var respn model.Response
 		respn.Status = "Error: Slug tidak ditemukan"
-		respn.Response = "Slug tidak disertakan dalam permintaan" + slug
+		respn.Response = "Slug tidak disertakan dalam permintaan"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
@@ -186,7 +185,7 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Jika toko ditemukan dan pengguna memiliki akses, kembalikan data menu toko tersebut
+	// Jika toko ditemukan, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil diambil",
