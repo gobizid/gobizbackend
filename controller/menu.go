@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -135,6 +136,19 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		tokoInput.Menu = []model.Menu{}
 	}
 
+	// Jika alamat kosong, inisialisasi alamat dengan nilai default atau error jika wajib diisi
+	if tokoInput.Alamat == (model.Address{}) {
+		var respn model.Response
+		respn.Status = "Error: Alamat tidak valid"
+		respn.Response = "Alamat harus diisi"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Atur nilai waktu untuk createdAt dan updatedAt pada address
+	tokoInput.Alamat.CreatedAt = time.Now()
+	tokoInput.Alamat.UpdatedAt = time.Now()
+
 	// Insert data toko ke database
 	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
 	if err != nil {
@@ -153,15 +167,24 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			"id":        dataToko,
 			"nama_toko": tokoInput.NamaToko,
 			"slug":      tokoInput.Slug,
-			"alamat":    tokoInput.Alamat,
-			"user":      tokoInput.User, // informasi user
-			"menu":      tokoInput.Menu, // informasi menu
+			"alamat": map[string]interface{}{
+				"street":      tokoInput.Alamat.Street,
+				"province":    tokoInput.Alamat.Province,
+				"city":        tokoInput.Alamat.City,
+				"description": tokoInput.Alamat.Description,
+				"postal_code": tokoInput.Alamat.PostalCode,
+				"createdAt":   tokoInput.Alamat.CreatedAt,
+				"updatedAt":   tokoInput.Alamat.UpdatedAt,
+			},
+			"user": tokoInput.User, // informasi user
+			"menu": tokoInput.Menu, // informasi menu
 		},
 	}
 
 	// Response sukses dengan data lengkap
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	// Ambil parameter slug dari query params, bukan URL params
