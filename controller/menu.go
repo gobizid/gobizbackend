@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -118,7 +117,34 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user yang melakukan request ada di koleksi "user" berdasarkan nomor telepon
+	// Cek apakah user sudah memiliki toko
+	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
+	if err == nil && docTokoUser.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: User sudah memiliki toko"
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Cek apakah nama toko sudah ada
+	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": tokoInput.NamaToko})
+	if err == nil && docTokoNama.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: Nama Toko sudah digunakan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Cek apakah slug toko sudah ada
+	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"slug": tokoInput.Slug})
+	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: Slug Toko sudah digunakan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Set user yang membuat toko
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -127,27 +153,12 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusNotImplemented, respn)
 		return
 	}
-
-	// Set user yang membuat toko
 	tokoInput.User = []model.Userdomyikado{docuser}
 
 	// Jika data menu tidak ada (kosong atau null), inisialisasi sebagai array kosong
 	if tokoInput.Menu == nil {
 		tokoInput.Menu = []model.Menu{}
 	}
-
-	// Jika alamat kosong, inisialisasi alamat dengan nilai default atau error jika wajib diisi
-	if tokoInput.Alamat == (model.Address{}) {
-		var respn model.Response
-		respn.Status = "Error: Alamat tidak valid"
-		respn.Response = "Alamat harus diisi"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	// Atur nilai waktu untuk createdAt dan updatedAt pada address
-	tokoInput.Alamat.CreatedAt = time.Now()
-	tokoInput.Alamat.UpdatedAt = time.Now()
 
 	// Insert data toko ke database
 	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
@@ -184,7 +195,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	// Response sukses dengan data lengkap
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	// Ambil parameter slug dari query params, bukan URL params
