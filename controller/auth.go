@@ -268,7 +268,7 @@ func VerifyPasswordHandler(respw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    // Implementasi rate limiting
+	// Implementasi rate limiting
 	limiter := rl.GetLimiter(request.PhoneNumber)
 	if !limiter.Allow() {
 		var respn model.Response
@@ -424,7 +424,6 @@ func ResendPasswordHandler(respw http.ResponseWriter, r *http.Request) {
 	}
 	responseMessage := "User info updated and password generated successfully"
 
-	// Respond with success and the generated password
 	response := map[string]interface{}{
 		"message":     responseMessage,
 		"phonenumber": request.PhoneNumber,
@@ -433,4 +432,69 @@ func ResendPasswordHandler(respw http.ResponseWriter, r *http.Request) {
 
 	// Send the random password via WhatsApp
 	auth.SendWhatsAppPassword(respw, request.PhoneNumber, randomPassword)
+}
+
+func RegisterAkunPenjual(respw http.ResponseWriter, r *http.Request) {
+	var request model.Userdomyikado
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		respn := model.Response{
+			Status:   "Invalid Request",
+			Response: err.Error(),
+		}
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	re := regexp.MustCompile(`^62\d{9,15}$`)
+	if !re.MatchString(request.PhoneNumber) {
+		respn := model.Response{
+			Status:   "Bad Request",
+			Response: "Invalid phone number format",
+		}
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(request.Password)
+	if err != nil {
+		respn := model.Response{
+			Status:   "Failed to hash password",
+			Response: err.Error(),
+		}
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	newUser := model.Userdomyikado{
+		Name:          request.Name,
+		PhoneNumber:   request.PhoneNumber,
+		Email:         request.Email,
+		Team:          "pd.my.id",
+		Scope:         "dev",
+		LinkedDevice:  "v4.public.eyJhbGlhcyI6IlJvbGx5IE1hdWxhbmEgQXdhbmdnYSIsImV4cCI6IjIwMjktMDgtMDlUMTQ6MzQ6MjlaIiwiaWF0IjoiMjAyNC0wOC0wOVQwODozNDoyOVoiLCJpZCI6IjYyODEzMTIwMDAzMDAiLCJuYmYiOiIyMDI0LTA4LTA5VDA4OjM0OjI5WiJ9FXnQi5vnQ7YXHteepJ14Xcc-wPc0PLQ0n4LSbGFijfdkStVeD6QIDuwQGeaq7xETWmmtFXjfkmmfDG0WHmAlBA",
+		JumlahAntrian: 7,
+		Password:      hashedPassword,
+	}
+
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "user", newUser)
+	if err != nil {
+		respn := model.Response{
+			Status:   "Failed to insert new user",
+			Response: err.Error(),
+		}
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message":       "New user created successfully",
+		"name":          newUser.Name,
+		"phonenumber":   newUser.PhoneNumber,
+		"email":         newUser.Email,
+		"team":          newUser.Team,
+		"scope":         newUser.Scope,
+		"jumlahAntrian": newUser.JumlahAntrian,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
 }

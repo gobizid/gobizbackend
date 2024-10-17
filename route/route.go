@@ -144,6 +144,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.ResendPasswordHandler(w, r)
 		// Google Auth
 
+		// Auth FORM
+	case method == "POST" && path == "/auth/regis":
+		controller.RegisterAkunPenjual(w, r)
+
 		// menu and toko
 	case method == "POST" && path == "/create/toko":
 		controller.CreateToko(w, r)
