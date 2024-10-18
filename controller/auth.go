@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -535,8 +534,10 @@ func LoginAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 
 	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, config.PrivateKey, 18)
 	if err != nil {
-		log.Println("Error generating token:", err, "| metric:", config.PrivateKey, "| jsontoken:", storedUser.Name)
-		http.Error(respw, "Failed to generate token", http.StatusInternalServerError)
+		var respn model.Response
+		respn.Status = "Error: token gagal generate"
+		respn.Response = ", Error: " + err.Error() + "phonenumber:" + storedUser.PhoneNumber + "|privatekey: " + config.PrivateKey
+		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
