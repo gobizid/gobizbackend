@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -494,6 +495,60 @@ func RegisterAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		"team":          newUser.Team,
 		"scope":         newUser.Scope,
 		"jumlahAntrian": newUser.JumlahAntrian,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func LoginAkunPenjual(respw http.ResponseWriter, r *http.Request) {
+	var userRequest model.Userdomyikado
+
+	if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
+		response := model.Response{
+			Status:   "Invalid Request",
+			Response: err.Error(),
+		}
+		at.WriteJSON(respw, http.StatusBadRequest, response)
+		return
+	}
+
+	var storedUser model.Userdomyikado
+	err := config.Mongoconn.Collection("user").FindOne(context.Background(), bson.M{"email": userRequest.Email}).Decode(&storedUser)
+	if err != nil {
+		response := model.Response{
+			Status:   "Error: Toko tidak ditemukan",
+			Response: "Error: " + err.Error(),
+		}
+		at.WriteJSON(respw, http.StatusNotFound, response)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(userRequest.Password))
+	if err != nil {
+		response := model.Response{
+			Status:   "Failed to verify password",
+			Response: "Invalid password",
+		}
+		at.WriteJSON(respw, http.StatusUnauthorized, response)
+		return
+	}
+
+	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, config.PrivateKey, 18)
+	if err != nil {
+		log.Println("Error generating token:", err, "| metric:", config.PrivateKey, "| jsontoken:", storedUser.Name)
+		http.Error(respw, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Login successful",
+		"name":    storedUser.Name,
+		"email":   storedUser.Email,
+		"phone":   storedUser.PhoneNumber,
+		"team":    storedUser.Team,
+		"scope":   storedUser.Scope,
+		"token":   encryptedToken,
+		"antrian": storedUser.JumlahAntrian,
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)

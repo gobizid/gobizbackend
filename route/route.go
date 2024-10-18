@@ -147,6 +147,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// Auth FORM
 	case method == "POST" && path == "/auth/regis":
 		controller.RegisterAkunPenjual(w, r)
+	case method == "POST" && path == "/auth/login/form":
+		controller.LoginAkunPenjual(w, r)
 
 		// menu and toko
 	case method == "POST" && path == "/create/toko":
