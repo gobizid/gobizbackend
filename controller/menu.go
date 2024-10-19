@@ -82,12 +82,12 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		"status":  "success",
 		"message": "Menu berhasil ditambahkan ke toko",
 		"data": map[string]interface{}{
-			"id":        existingToko.ID.Hex(),
-			"nama_toko": existingToko.NamaToko,
-			"slug":      existingToko.Slug,
-			"alamat":    existingToko.Alamat,
-			"user":      docuser,
-			"menu":      existingToko.Menu,
+			"id":         existingToko.ID.Hex(),
+			"nama_toko":  existingToko.NamaToko,
+			"categories": existingToko.Categories,
+			"alamat":     existingToko.Alamat,
+			"user":       docuser,
+			"menu":       existingToko.Menu,
 		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
@@ -95,35 +95,35 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	// Ambil parameter slug dari query params, bukan URL params
-	slug := req.URL.Query().Get("slug")
-	if slug == "" {
+	name := req.URL.Query().Get("nama_toko")
+	if name == "" {
 		var respn model.Response
-		respn.Status = "Error: Slug tidak ditemukan"
-		respn.Response = "Slug tidak disertakan dalam permintaan"
+		respn.Status = "Error: Name tidak ditemukan"
+		respn.Response = "Name tidak disertakan dalam permintaan"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
 	// Cari toko berdasarkan slug
 	var toko model.Toko
-	err := config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
+	err := config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"nama_toko": name}).Decode(&toko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
-		respn.Response = "Slug: " + slug + ", Error: " + err.Error()
+		respn.Response = "nama_toko: " + name + ", Error: " + err.Error()
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
 	// Jika toko ditemukan, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
-		"status":    "success",
-		"message":   "Menu berhasil diambil",
-		"nama_toko": toko.NamaToko,
-		"slug":      toko.Slug,
-		"alamat":    toko.Alamat,
-		"owner":     toko.User,
-		"data":      toko.Menu,
+		"status":     "success",
+		"message":    "Menu berhasil diambil",
+		"nama_toko":  toko.NamaToko,
+		"categories": toko.Categories,
+		"alamat":     toko.Alamat,
+		"owner":      toko.User,
+		"data":       toko.Menu,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
@@ -150,4 +150,30 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 
 	// Jika data ditemukan, kirimkan data dalam bentuk JSON
 	at.WriteJSON(respw, http.StatusOK, data)
+}
+
+func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
+	data, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data menu tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Data menu berhasil diambil",
+		"data": map[string]interface{}{
+			"id":        data.ID.Hex(),
+			"nama_menu": data.Name,
+			"price":     data.Price,
+			"rating":    data.Rating,
+			"sold":      data.Sold,
+			"image":     data.Image,
+		},
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
 }

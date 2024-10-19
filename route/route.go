@@ -159,6 +159,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.InsertDataMenu(w, r)
 	case method == "GET" && path == "/page/toko":
 		controller.GetPageMenuByToko(w, r)
+	case method == "GET" && path == "/menu":
+		controller.GetAllMenu(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

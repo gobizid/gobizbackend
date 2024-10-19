@@ -7,21 +7,22 @@ import (
 )
 
 type Menu struct {
-	Name          string  `json:"name" bson:"name"`
-	Price         int     `json:"price" bson:"price"`
-	OriginalPrice int     `json:"originalPrice" bson:"originalPrice"`
-	Rating        float64 `json:"rating" bson:"rating"`
-	Sold          int     `json:"sold" bson:"sold"`
-	Image         string  `json:"image" bson:"image"`
+	ID            primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty" query:"id" url:"_id"`
+	Name          string             `json:"name" bson:"name"`
+	Price         int                `json:"price" bson:"price"`
+	OriginalPrice int                `json:"originalPrice" bson:"originalPrice"`
+	Rating        float64            `json:"rating" bson:"rating"`
+	Sold          int                `json:"sold" bson:"sold"`
+	Image         string             `json:"image" bson:"image"`
 }
 
 type Toko struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	NamaToko string             `bson:"nama_toko" json:"nama_toko"`
-	Slug     string             `bson:"slug" json:"slug"`
-	Alamat   Address             `bson:"alamat" json:"alamat"`
-	User     []Userdomyikado    `bson:"user" json:"user"`
-	Menu     []Menu             `bson:"menu" json:"menu"`
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	NamaToko   string             `bson:"nama_toko" json:"nama_toko"`
+	Categories string             `bson:"categories" json:"categories"`
+	Alamat     Address            `bson:"alamat" json:"alamat"`
+	User       []Userdomyikado    `bson:"user" json:"user"`
+	Menu       []Menu             `bson:"menu" json:"menu"`
 }
 
 type Address struct {
