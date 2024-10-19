@@ -17,7 +17,7 @@ import (
 
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	// Validasi token
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Token Tidak Valid"
@@ -120,7 +120,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	// Validasi token
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Token Tidak Valid"

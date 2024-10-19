@@ -533,11 +533,11 @@ func LoginAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, PrivateKey, 18)
+	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, config.PRIVATEKEY, 18)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: token gagal generate"
-		respn.Response = ", Error: " + err.Error() + "phonenumber:" + storedUser.PhoneNumber + "|privatekey: " + PrivateKey
+		respn.Response = ", Error: " + err.Error()
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
