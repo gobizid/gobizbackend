@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// testing
+var PrivateKey string = os.Getenv("PRKEY")
 
 func Auth(w http.ResponseWriter, r *http.Request) {
 	var request struct {
@@ -532,11 +533,11 @@ func LoginAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, config.PrivateKey, 18)
+	encryptedToken, err := watoken.EncodeforHours(storedUser.PhoneNumber, storedUser.Name, PrivateKey, 18)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: token gagal generate"
-		respn.Response = ", Error: " + err.Error() + "phonenumber:" + storedUser.PhoneNumber + "|privatekey: " + config.PrivateKey
+		respn.Response = ", Error: " + err.Error() + "phonenumber:" + storedUser.PhoneNumber + "|privatekey: " + PrivateKey
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
