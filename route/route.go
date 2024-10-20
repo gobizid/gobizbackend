@@ -161,6 +161,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetPageMenuByToko(w, r)
 	case method == "GET" && path == "/menu":
 		controller.GetAllMenu(w, r)
+	case method == "GET" && path == "/menu/category":
+		controller.GetAllCategory(w, r)
 	default:
 		controller.NotFound(w, r)
 	}

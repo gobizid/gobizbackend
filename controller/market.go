@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/ghupload"
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"github.com/gorilla/mux"
@@ -28,7 +31,61 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Decode body request menjadi struct Toko
+	// Parse multipart form data (untuk menerima file upload)
+	err = req.ParseMultipartForm(10 << 20) // Batas 10MB
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal memproses form data"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Ambil file gambar dari form data
+	file, header, err := req.FormFile("tokoImage")
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gambar toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+	defer file.Close()
+
+	// Baca isi file gambar
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal membaca file"
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Buat nama file unik dengan hashing
+	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
+
+	// Upload file ke GitHub
+	GitHubAccessToken := config.GHAccessToken
+	GitHubAuthorName := "Rolly Maulana Awangga"
+	GitHubAuthorEmail := "awangga@gmail.com"
+	githubOrg := "gobizid"
+	githubRepo := "img"
+	pathFile := "tokoImages/" + hashedFileName
+	replace := true
+
+	// Upload gambar ke GitHub menggunakan fungsi yang sudah ada
+	content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengupload gambar ke GitHub"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// URL gambar yang diupload ke GitHub
+	gambarTokoURL := *content.Content.HTMLURL
+
+	// Decode body request menjadi struct Toko (untuk data toko)
 	var tokoInput model.Toko
 	err = json.NewDecoder(req.Body).Decode(&tokoInput)
 	if err != nil {
@@ -77,6 +134,9 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	tokoInput.User = []model.Userdomyikado{docuser}
 
+	// Simpan URL gambar ke struct toko
+	tokoInput.GambarToko = gambarTokoURL
+
 	// Jika data menu tidak ada (kosong atau null), inisialisasi sebagai array kosong
 	if tokoInput.Menu == nil {
 		tokoInput.Menu = []model.Menu{}
@@ -97,9 +157,10 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		"status":  "success",
 		"message": "Toko berhasil dibuat",
 		"data": map[string]interface{}{
-			"id":        dataToko,
-			"nama_toko": tokoInput.NamaToko,
-			"slug":      tokoInput.Slug,
+			"id":         dataToko,
+			"nama_toko":  tokoInput.NamaToko,
+			"slug":       tokoInput.Slug,
+			"categories": tokoInput.Category,
 			"alamat": map[string]interface{}{
 				"street":      tokoInput.Alamat.Street,
 				"province":    tokoInput.Alamat.Province,
@@ -109,8 +170,9 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 				"createdAt":   tokoInput.Alamat.CreatedAt,
 				"updatedAt":   tokoInput.Alamat.UpdatedAt,
 			},
-			"user": tokoInput.User, // informasi user
-			"menu": tokoInput.Menu, // informasi menu
+			"gambar_toko": gambarTokoURL,  // URL gambar toko yang di-upload
+			"user":        tokoInput.User, // informasi user
+			"menu":        tokoInput.Menu, // informasi menu
 		},
 	}
 
@@ -210,6 +272,9 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	if tokoInput.Slug != "" {
 		updateData["slug"] = tokoInput.Slug
+	}
+	if tokoInput.Category != "" {
+		updateData["category"] = tokoInput.Category
 	}
 	if tokoInput.Alamat.Street != "" {
 		updateData["alamat.street"] = tokoInput.Alamat.Street
