@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -176,7 +175,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
-	// Validasi token
 	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
@@ -188,8 +186,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Ambil ID toko dari parameter URL
-	vars := mux.Vars(req) // Menggunakan Gorilla Mux
+	vars := mux.Vars(req)
 	tokoID := vars["id"]
 	if tokoID == "" {
 		var respn model.Response
@@ -198,18 +195,15 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Decode body request menjadi struct Toko
-	var tokoInput model.Toko
-	err = json.NewDecoder(req.Body).Decode(&tokoInput)
+	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Body tidak valid"
+		respn.Status = "Error: Gagal memproses form data"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
-	// Cek apakah toko dengan ID yang diberikan ada
 	objectID, err := primitive.ObjectIDFromHex(tokoID)
 	if err != nil {
 		var respn model.Response
@@ -228,7 +222,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user yang ingin mengupdate toko adalah pemilik toko
 	if existingToko.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
 		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate toko ini"
@@ -236,63 +229,84 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah nama toko sudah digunakan oleh toko lain
-	if tokoInput.NamaToko != "" && tokoInput.NamaToko != existingToko.NamaToko {
-		var tokoNama model.Toko
-		err := config.Mongoconn.Collection("menu").FindOne(context.TODO(), bson.M{"nama_toko": tokoInput.NamaToko}).Decode(&tokoNama)
-		if err == nil {
+	var gambarTokoURL string
+	file, header, err := req.FormFile("tokoImage")
+	if err == nil {
+		defer file.Close()
+
+		fileContent, err := io.ReadAll(file)
+		if err != nil {
 			var respn model.Response
-			respn.Status = "Error: Nama Toko sudah digunakan"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			respn.Status = "Error: Gagal membaca file"
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
 			return
 		}
-	}
 
-	// Cek apakah slug toko sudah digunakan oleh toko lain
-	if tokoInput.Slug != "" && tokoInput.Slug != existingToko.Slug {
-		var tokoSlug model.Toko
-		err := config.Mongoconn.Collection("menu").FindOne(context.TODO(), bson.M{"slug": tokoInput.Slug}).Decode(&tokoSlug)
-		if err == nil {
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
+
+		GitHubAccessToken := config.GHAccessToken
+		GitHubAuthorName := "Rolly Maulana Awangga"
+		GitHubAuthorEmail := "awangga@gmail.com"
+		githubOrg := "gobizid"
+		githubRepo := "img"
+		pathFile := "tokoImages/" + hashedFileName
+		replace := true
+
+		content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
+		if err != nil {
 			var respn model.Response
-			respn.Status = "Error: Slug Toko sudah digunakan"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			respn.Status = "Error: Gagal mengupload gambar ke GitHub"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
 			return
 		}
+
+		gambarTokoURL = *content.Content.HTMLURL
 	}
 
-	// Update data toko
+	namaToko := req.FormValue("nama_toko")
+	slug := req.FormValue("slug")
+	category := req.FormValue("category")
+	street := req.FormValue("alamat.street")
+	province := req.FormValue("alamat.province")
+	city := req.FormValue("alamat.city")
+	description := req.FormValue("alamat.description")
+	postalCode := req.FormValue("alamat.postal_code")
+
 	updateData := bson.M{}
-	if tokoInput.NamaToko != "" {
-		updateData["nama_toko"] = tokoInput.NamaToko
+	if namaToko != "" {
+		updateData["nama_toko"] = namaToko
 	}
-	if tokoInput.Slug != "" {
-		updateData["slug"] = tokoInput.Slug
+	if slug != "" {
+		updateData["slug"] = slug
 	}
-	if tokoInput.Category != "" {
-		updateData["category"] = tokoInput.Category
+	if category != "" {
+		updateData["category"] = category
 	}
-	if tokoInput.Alamat.Street != "" {
-		updateData["alamat.street"] = tokoInput.Alamat.Street
+	if street != "" {
+		updateData["alamat.street"] = street
 	}
-	if tokoInput.Alamat.Province != "" {
-		updateData["alamat.province"] = tokoInput.Alamat.Province
+	if province != "" {
+		updateData["alamat.province"] = province
 	}
-	if tokoInput.Alamat.City != "" {
-		updateData["alamat.city"] = tokoInput.Alamat.City
+	if city != "" {
+		updateData["alamat.city"] = city
 	}
-	if tokoInput.Alamat.Description != "" {
-		updateData["alamat.description"] = tokoInput.Alamat.Description
+	if description != "" {
+		updateData["alamat.description"] = description
 	}
-	if tokoInput.Alamat.PostalCode != "" {
-		updateData["alamat.postal_code"] = tokoInput.Alamat.PostalCode
-	}
-
-	// Jika menu ingin diperbarui
-	if tokoInput.Menu != nil {
-		updateData["menu"] = tokoInput.Menu
+	if postalCode != "" {
+		updateData["alamat.postal_code"] = postalCode
 	}
 
-	// Lakukan update ke database
+	if gambarTokoURL != "" {
+		updateData["gambar_toko"] = gambarTokoURL
+	}
+
+	// if tokoInput.Menu != nil {
+	// 	updateData["menu"] = tokoInput.Menu
+	// }
+
 	update := bson.M{"$set": updateData}
 	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
@@ -303,13 +317,11 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
-		"data":    tokoInput,
+		"data":    updateData,
 	}
 
-	// Response sukses
 	at.WriteJSON(respw, http.StatusOK, response)
 }
