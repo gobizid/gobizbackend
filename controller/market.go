@@ -103,13 +103,14 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Fetch category document from database based on the categoryID
-	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
+	// Query MongoDB untuk mendapatkan detail kategori berdasarkan category_id
+	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "categories", primitive.M{"_id": objectCategoryID})
 	if err != nil || categoryDoc.ID == primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: Kategori tidak ditemukan"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
+			var respn model.Response
+			respn.Status = "Error: Kategori tidak ditemukan"
+			respn.Response = "ID yang dicari: " + categoryID
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
 	}
 
 	// Check if the user already has a toko
@@ -148,11 +149,10 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Create the Toko object
 	tokoInput := model.Toko{
 		NamaToko:   namaToko,
 		Slug:       slug,
-		Category:   categoryDoc, // Assign the fetched category document
+		Category:   categoryDoc, // Isi nama kategori berdasarkan category_id
 		GambarToko: gambarTokoURL,
 		Alamat: model.Address{
 			Street:      street,
@@ -164,7 +164,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			UpdatedAt:   time.Now(),
 		},
 		User: []model.Userdomyikado{docuser},
-		Menu: []model.Menu{},
 	}
 
 	// Insert the toko into the database
