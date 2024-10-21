@@ -277,3 +277,36 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, allMenus)
 }
+
+func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
+	category := req.URL.Query().Get("category")
+	if category == "" {
+		var respn model.Response
+		respn.Status = "Error: Kategori tidak ditemukan"
+		respn.Response = "Kategori tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	var menu model.Menu
+	err := config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"category": category}).Decode(&menu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu tidak ditemukan"
+		respn.Response = "Category: " + category + ", Error: " + err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"status":        "success",
+		"message":       "Menu berhasil diambil",
+		"name":          menu.Name,
+		"image":         menu.Image,
+		"originalprice": menu.OriginalPrice,
+		"price":         menu.Price,
+		"rating":        menu.Rating,
+		"sold":          menu.Sold,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
