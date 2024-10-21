@@ -303,10 +303,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		updateData["gambar_toko"] = gambarTokoURL
 	}
 
-	// if tokoInput.Menu != nil {
-	// 	updateData["menu"] = tokoInput.Menu
-	// }
-
 	update := bson.M{"$set": updateData}
 	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
 	if err != nil {

@@ -1,13 +1,16 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
 	"github.com/gocroot/helper/atdb"
+	"github.com/gocroot/helper/ghupload"
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,15 +29,60 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var tokoInput model.Toko
-	err = json.NewDecoder(req.Body).Decode(&tokoInput)
+	err = req.ParseMultipartForm(10 << 20) // Batas 10MB
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Body tidak valid"
+		respn.Status = "Error: Gagal memproses form data"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
+
+	var menuImageURL string
+	file, header, err := req.FormFile("menuImage")
+	if err == nil {
+		defer file.Close()
+
+		fileContent, err := io.ReadAll(file)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal membaca file"
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
+
+		GitHubAccessToken := config.GHAccessToken
+		GitHubAuthorName := "Rolly Maulana Awangga"
+		GitHubAuthorEmail := "awangga@gmail.com"
+		githubOrg := "gobizid"
+		githubRepo := "img"
+		pathFile := "menuImages/" + hashedFileName
+		replace := true
+
+		content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal mengupload gambar ke GitHub"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+
+		menuImageURL = *content.Content.HTMLURL
+	}
+
+	menuName := req.FormValue("name")
+	menuPrice := req.FormValue("price")
+	menuOriginalPrice := req.FormValue("originalPrice")
+	menuRating := req.FormValue("rating")
+	menuSold := req.FormValue("sold")
+
+	price, _ := strconv.Atoi(menuPrice)
+	originalPrice, _ := strconv.Atoi(menuOriginalPrice)
+	rating, _ := strconv.ParseFloat(menuRating, 64)
+	sold, _ := strconv.Atoi(menuSold)
 
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
@@ -62,7 +110,16 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	existingToko.Menu = append(existingToko.Menu, tokoInput.Menu...)
+	newMenu := model.Menu{
+		Name:          menuName,
+		Price:         price,
+		OriginalPrice: originalPrice,
+		Rating:        rating,
+		Sold:          sold,
+		Image:         menuImageURL,
+	}
+
+	existingToko.Menu = append(existingToko.Menu, newMenu)
 
 	update := bson.M{
 		"$set": bson.M{
