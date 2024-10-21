@@ -18,7 +18,7 @@ import (
 )
 
 func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Token Tidak Valid"
