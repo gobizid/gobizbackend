@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -19,7 +20,6 @@ import (
 )
 
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
-	// Validasi token
 	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
@@ -31,8 +31,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parse multipart form data (untuk menerima file upload)
-	err = req.ParseMultipartForm(10 << 20) // Batas 10MB
+	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal memproses form data"
@@ -41,7 +40,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Ambil file gambar dari form data
 	file, header, err := req.FormFile("tokoImage")
 	if err != nil {
 		var respn model.Response
@@ -51,7 +49,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	defer file.Close()
 
-	// Baca isi file gambar
 	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		var respn model.Response
@@ -60,10 +57,8 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat nama file unik dengan hashing
 	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
 
-	// Upload file ke GitHub
 	GitHubAccessToken := config.GHAccessToken
 	GitHubAuthorName := "Rolly Maulana Awangga"
 	GitHubAuthorEmail := "awangga@gmail.com"
@@ -72,7 +67,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	pathFile := "tokoImages/" + hashedFileName
 	replace := true
 
-	// Upload gambar ke GitHub menggunakan fungsi yang sudah ada
 	content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
 	if err != nil {
 		var respn model.Response
@@ -82,21 +76,33 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// URL gambar yang diupload ke GitHub
 	gambarTokoURL := *content.Content.HTMLURL
 
-	// Decode body request menjadi struct Toko (untuk data toko)
-	var tokoInput model.Toko
-	err = json.NewDecoder(req.Body).Decode(&tokoInput)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Body tidak valid"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
+	namaToko := req.FormValue("nama_toko")
+	slug := req.FormValue("slug")
+	category := req.FormValue("category")
+	street := req.FormValue("alamat.street")
+	province := req.FormValue("alamat.province")
+	city := req.FormValue("alamat.city")
+	description := req.FormValue("alamat.description")
+	postalCode := req.FormValue("alamat.postal_code")
+
+	tokoInput := model.Toko{
+		NamaToko:   namaToko,
+		Slug:       slug,
+		Category:   category,
+		GambarToko: gambarTokoURL,
+		Alamat: model.Address{
+			Street:      street,
+			Province:    province,
+			City:        city,
+			Description: description,
+			PostalCode:  postalCode,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
 	}
 
-	// Cek apakah user sudah memiliki toko
 	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
 	if err == nil && docTokoUser.ID != primitive.NilObjectID {
 		var respn model.Response
@@ -105,7 +111,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah nama toko sudah ada
 	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": tokoInput.NamaToko})
 	if err == nil && docTokoNama.ID != primitive.NilObjectID {
 		var respn model.Response
@@ -114,7 +119,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah slug toko sudah ada
 	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"slug": tokoInput.Slug})
 	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
 		var respn model.Response
@@ -123,7 +127,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Set user yang membuat toko
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -134,15 +137,10 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	tokoInput.User = []model.Userdomyikado{docuser}
 
-	// Simpan URL gambar ke struct toko
-	tokoInput.GambarToko = gambarTokoURL
-
-	// Jika data menu tidak ada (kosong atau null), inisialisasi sebagai array kosong
 	if tokoInput.Menu == nil {
 		tokoInput.Menu = []model.Menu{}
 	}
 
-	// Insert data toko ke database
 	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
 	if err != nil {
 		var respn model.Response
@@ -152,7 +150,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat response sukses dengan data yang lebih lengkap
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dibuat",
@@ -170,16 +167,14 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 				"createdAt":   tokoInput.Alamat.CreatedAt,
 				"updatedAt":   tokoInput.Alamat.UpdatedAt,
 			},
-			"gambar_toko": gambarTokoURL,  // URL gambar toko yang di-upload
-			"user":        tokoInput.User, // informasi user
-			"menu":        tokoInput.Menu, // informasi menu
+			"gambar_toko": gambarTokoURL,
+			"user":        tokoInput.User,
+			"menu":        tokoInput.Menu,
 		},
 	}
 
-	// Response sukses dengan data lengkap
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	// Validasi token
 	payload, err := watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
