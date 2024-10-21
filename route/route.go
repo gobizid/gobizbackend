@@ -153,7 +153,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// menu and toko
 	case method == "POST" && path == "/create/toko":
 		controller.CreateToko(w, r)
-	case method == "PUT" && path == "/update/toko/{id}":
+	case method == "PUT" && path == "/update/toko/":
 		controller.UpdateToko(w, r)
 	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
@@ -165,10 +165,6 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllCategory(w, r)
 	case method == "GET" && path == "/menu":
 		controller.GetDataMenuByCategory(w, r)
-
-		// Categories
-	case method == "POST" && path == "/category/add":
-		controller.CreateCategory(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
