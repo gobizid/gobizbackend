@@ -104,7 +104,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Query MongoDB untuk mendapatkan detail kategori berdasarkan category_id
-	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "categories", primitive.M{"_id": objectCategoryID})
+	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
 	if err != nil || categoryDoc.ID == primitive.NilObjectID {
 			var respn model.Response
 			respn.Status = "Error: Kategori tidak ditemukan"
