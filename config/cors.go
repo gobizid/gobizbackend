@@ -10,6 +10,7 @@ var Origins = []string{
 	"https://go.biz.id",
 	"https://jual.in.my.id",
 	"http://127.0.0.1:5500",
+	"http://localhost:5173",
 }
 
 // Fungsi untuk memeriksa apakah origin diizinkan
