@@ -19,7 +19,7 @@ type Toko struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	NamaToko   string             `bson:"nama_toko" json:"nama_toko"`
 	Slug       string             `bson:"slug" json:"slug"`
-	Category   string             `bson:"category" json:"category"`
+	Category   Category             `bson:"category" json:"category"`
 	GambarToko string             `bson:"gambar_toko" json:"gambar_toko"`
 	Alamat     Address            `bson:"alamat" json:"alamat"`
 	User       []Userdomyikado    `bson:"user" json:"user"`
@@ -39,5 +39,5 @@ type Address struct {
 
 type Category struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name_category string             `bson:"name_category" json:"name_category"`
+	CategoryName string             `bson:"category_name" json:"category_name"`
 }

@@ -19,6 +19,7 @@ import (
 )
 
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
+	// Decode token and get user information
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		var respn model.Response
@@ -30,6 +31,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Parse multipart form (10 MB limit)
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -39,6 +41,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Get the uploaded image
 	file, header, err := req.FormFile("tokoImage")
 	if err != nil {
 		var respn model.Response
@@ -48,6 +51,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	defer file.Close()
 
+	// Read file content
 	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		var respn model.Response
@@ -56,8 +60,10 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
+	// Generate hashed file name for the image
+	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Add file extension
 
+	// Upload the image to GitHub
 	GitHubAccessToken := config.GHAccessToken
 	GitHubAuthorName := "Rolly Maulana Awangga"
 	GitHubAuthorEmail := "awangga@gmail.com"
@@ -75,21 +81,78 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Get the URL of the uploaded image
 	gambarTokoURL := *content.Content.HTMLURL
 
+	// Get toko details from form data
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
-	category := req.FormValue("category")
+	categoryID := req.FormValue("category_id") // Get category ID from form data
 	street := req.FormValue("alamat.street")
 	province := req.FormValue("alamat.province")
 	city := req.FormValue("alamat.city")
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
+	// Convert string categoryID to MongoDB ObjectID
+	objectCategoryID, err := primitive.ObjectIDFromHex(categoryID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Kategori ID tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Fetch category document from database based on the categoryID
+	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "categories", primitive.M{"_id": objectCategoryID})
+	if err != nil || categoryDoc.ID == primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: Kategori tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Check if the user already has a toko
+	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
+	if err == nil && docTokoUser.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: User sudah memiliki toko"
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Check if the nama_toko or slug already exists
+	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": namaToko})
+	if err == nil && docTokoNama.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: Nama Toko sudah digunakan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"slug": slug})
+	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
+		var respn model.Response
+		respn.Status = "Error: Slug Toko sudah digunakan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Fetch user document
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	// Create the Toko object
 	tokoInput := model.Toko{
 		NamaToko:   namaToko,
 		Slug:       slug,
-		Category:   category,
+		Category:   categoryDoc, // Assign the fetched category document
 		GambarToko: gambarTokoURL,
 		Alamat: model.Address{
 			Street:      street,
@@ -100,46 +163,11 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 		},
+		User: []model.Userdomyikado{docuser},
+		Menu: []model.Menu{},
 	}
 
-	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
-	if err == nil && docTokoUser.ID != primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: User sudah memiliki toko"
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-	}
-
-	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": tokoInput.NamaToko})
-	if err == nil && docTokoNama.ID != primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: Nama Toko sudah digunakan"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"slug": tokoInput.Slug})
-	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: Slug Toko sudah digunakan"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Data user tidak ditemukan"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotImplemented, respn)
-		return
-	}
-	tokoInput.User = []model.Userdomyikado{docuser}
-
-	if tokoInput.Menu == nil {
-		tokoInput.Menu = []model.Menu{}
-	}
-
+	// Insert the toko into the database
 	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
 	if err != nil {
 		var respn model.Response
@@ -149,6 +177,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Respond with the created toko data
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dibuat",
@@ -405,7 +434,7 @@ func CreateCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	newCategory := model.Category{
-		Name_category: category.Name_category,
+		CategoryName: category.CategoryName,
 	}
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "category", newCategory)
 	if err != nil {
@@ -444,7 +473,7 @@ func GetAllCategory(respw http.ResponseWriter, req *http.Request) {
 	categoryMap := make(map[string]primitive.ObjectID)
 
 	for _, category := range data {
-		categoryMap[category.Name_category] = category.ID
+		categoryMap[category.CategoryName] = category.ID
 	}
 
 	var categories []map[string]interface{}
