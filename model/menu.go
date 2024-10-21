@@ -36,3 +36,8 @@ type Address struct {
 	CreatedAt   time.Time          `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
 	UpdatedAt   time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }
+
+type Category struct {
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name_category string             `bson:"name_category" json:"name_category"`
+}
