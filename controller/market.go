@@ -174,6 +174,52 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
+	// Mengambil semua data toko dari collection 'menu'
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data market tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Jika tidak ada data toko
+	if len(tokos) == 0 {
+		var respn model.Response
+		respn.Status = "Error: Data market kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Menyimpan hasil semua market (toko)
+	var allMarkets []map[string]interface{}
+
+	for _, toko := range tokos {
+		// Menambahkan setiap toko ke dalam hasil
+		allMarkets = append(allMarkets, map[string]interface{}{
+			"id":           toko.ID.Hex(),
+			"nama_toko":    toko.NamaToko,
+			"slug":         toko.Slug,
+			"category":     toko.Category,
+			"gambar_toko":  toko.GambarToko,
+			"alamat": map[string]interface{}{
+				"street":      toko.Alamat.Street,
+				"province":    toko.Alamat.Province,
+				"city":        toko.Alamat.City,
+				"description": toko.Alamat.Description,
+				"postal_code": toko.Alamat.PostalCode,
+			},
+			"user": toko.User, // Tambahkan informasi user jika diperlukan
+		})
+	}
+
+	// Mengembalikan data market dalam format JSON
+	at.WriteJSON(respw, http.StatusOK, allMarkets)
+}
+
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
@@ -186,6 +232,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Ambil ID toko dari URL
 	vars := mux.Vars(req)
 	tokoID := vars["id"]
 	if tokoID == "" {
@@ -195,15 +242,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = req.ParseMultipartForm(10 << 20)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Gagal memproses form data"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
+	// Coba konversi tokoID dari string ke ObjectID MongoDB
 	objectID, err := primitive.ObjectIDFromHex(tokoID)
 	if err != nil {
 		var respn model.Response
@@ -212,6 +251,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Coba ambil data toko dari database berdasarkan ID
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
 	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingToko)
@@ -222,6 +262,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Cek apakah user yang melakukan update adalah pemilik toko
 	if existingToko.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
 		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate toko ini"
@@ -229,6 +270,17 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Parsing form data (dengan batasan 10MB)
+	err = req.ParseMultipartForm(10 << 20)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal memproses form data"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Handle file upload untuk gambar toko (opsional)
 	var gambarTokoURL string
 	file, header, err := req.FormFile("tokoImage")
 	if err == nil {
@@ -242,8 +294,10 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
+		// Generate nama file yang aman dengan hashing
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
 
+		// Upload gambar ke GitHub
 		GitHubAccessToken := config.GHAccessToken
 		GitHubAuthorName := "Rolly Maulana Awangga"
 		GitHubAuthorEmail := "awangga@gmail.com"
@@ -264,6 +318,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		gambarTokoURL = *content.Content.HTMLURL
 	}
 
+	// Ambil data dari form yang akan di-update
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
 	category := req.FormValue("category")
@@ -273,6 +328,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
+	// Buat data update untuk di MongoDB
 	updateData := bson.M{}
 	if namaToko != "" {
 		updateData["nama_toko"] = namaToko
@@ -298,11 +354,11 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	if postalCode != "" {
 		updateData["alamat.postal_code"] = postalCode
 	}
-
 	if gambarTokoURL != "" {
 		updateData["gambar_toko"] = gambarTokoURL
 	}
 
+	// Lakukan update di MongoDB
 	update := bson.M{"$set": updateData}
 	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
@@ -313,11 +369,11 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Kirim response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
 		"data":    updateData,
 	}
-
 	at.WriteJSON(respw, http.StatusOK, response)
 }
