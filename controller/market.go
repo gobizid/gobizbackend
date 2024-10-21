@@ -106,11 +106,11 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	// Query MongoDB untuk mendapatkan detail kategori berdasarkan category_id
 	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
 	if err != nil || categoryDoc.ID == primitive.NilObjectID {
-			var respn model.Response
-			respn.Status = "Error: Kategori tidak ditemukan"
-			respn.Response = "ID yang dicari: " + categoryID
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Kategori tidak ditemukan"
+		respn.Response = "ID yang dicari: " + categoryID
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
 	}
 
 	// Check if the user already has a toko
@@ -402,6 +402,120 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
 		"data":    updateData,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
+	// Ambil ID toko dari query parameter
+	tokoID := req.URL.Query().Get("id")
+	if tokoID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi tokoID dari string ke ObjectID MongoDB
+	objectID, err := primitive.ObjectIDFromHex(tokoID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Coba ambil data toko dari database berdasarkan ID
+	var toko model.Toko
+	filter := bson.M{"_id": objectID}
+	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&toko)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Kirim data toko yang ditemukan
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Toko ditemukan",
+		"data":    toko,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
+	// Ambil token dari header
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Token Tidak Valid"
+		respn.Info = at.GetSecretFromHeader(req)
+		respn.Location = "Decode Token Error"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Ambil ID toko dari query parameter
+	tokoID := req.URL.Query().Get("id")
+	if tokoID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi tokoID dari string ke ObjectID MongoDB
+	objectID, err := primitive.ObjectIDFromHex(tokoID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Coba ambil data toko dari database berdasarkan ID
+	var existingToko model.Toko
+	filter := bson.M{"_id": objectID}
+	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingToko)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Cek apakah user yang melakukan penghapusan adalah pemilik toko
+	if existingToko.User[0].PhoneNumber != payload.Id {
+		var respn model.Response
+		respn.Status = "Error: User tidak memiliki hak akses untuk menghapus toko ini"
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Coba hapus data toko dari database berdasarkan ID
+	result, err := config.Mongoconn.Collection("menu").DeleteOne(context.TODO(), filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus toko"
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Jika tidak ada dokumen yang dihapus, berarti toko tidak ditemukan
+	if result.DeletedCount == 0 {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Kirim response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Toko berhasil dihapus",
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
