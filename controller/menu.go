@@ -209,40 +209,6 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, data)
 }
 
-func GetAllCategory(resow http.ResponseWriter, req *http.Request) {
-	data, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Data menu tidak ditemukan"
-		respn.Response = err.Error()
-		at.WriteJSON(resow, http.StatusNotFound, respn)
-		return
-	}
-
-	if len(data) == 0 {
-		var respn model.Response
-		respn.Status = "Error: Data menu kosong"
-		at.WriteJSON(resow, http.StatusNotFound, respn)
-		return
-	}
-
-	categoryMap := make(map[string]primitive.ObjectID)
-
-	for _, toko := range data {
-		categoryMap[toko.Category] = toko.ID
-	}
-
-	var categories []map[string]interface{}
-
-	for category, id := range categoryMap {
-		categories = append(categories, map[string]interface{}{
-			"id":   id,
-			"name": category,
-		})
-	}
-
-	at.WriteJSON(resow, http.StatusOK, categories)
-}
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	data, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {

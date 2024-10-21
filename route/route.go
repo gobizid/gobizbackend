@@ -169,6 +169,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// category
 	case method == "POST" && path == "/create/category":
 		controller.CreateCategory(w, r)
+	case method == "GET" && path == "/category/all":
+		controller.GetAllCategory(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
