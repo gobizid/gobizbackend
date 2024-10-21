@@ -130,3 +130,16 @@ func NotFound(respw http.ResponseWriter, req *http.Request) {
 	resp.Response = "Not Found"
 	at.WriteJSON(respw, http.StatusNotFound, resp)
 }
+
+// NotFound mengembalikan pesan jika route tidak ditemukan
+func NotFoundRoute(respw http.ResponseWriter, r *http.Request) {
+	var resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+
+	resp.Status = "Error"
+	resp.Message = "Route Tidak Terdaftar"
+
+	at.WriteJSON(respw, http.StatusNotFound, resp)
+}
