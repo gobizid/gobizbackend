@@ -165,6 +165,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllCategory(w, r)
 	case method == "GET" && path == "/menu":
 		controller.GetDataMenuByCategory(w, r)
+	case method == "GET" && path == "/all/toko":
+		controller.GetAllMarket(w, r)
 	default:
 		controller.NotFound(w, r)
 	}
