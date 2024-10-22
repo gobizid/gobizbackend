@@ -175,6 +175,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.CreateCategory(w, r)
 	case method == "GET" && path == "/category/all":
 		controller.GetAllCategory(w, r)
+	case method == "GET" && path == "/category-id":
+		controller.GetCategoryByID(w, r)
+	case method == "PUT" && path == "/update/category":
+		controller.UpdateCategory(w, r)
 	default:
 		controller.NotFoundRoute(w, r)
 	}
