@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -520,83 +519,3 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-func CreateCategory(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-
-	if err != nil {
-		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-
-		if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Token Tidak Valid"
-			respn.Info = at.GetSecretFromHeader(req)
-			respn.Location = "Decode Token Error"
-			respn.Response = err.Error()
-			at.WriteJSON(respw, http.StatusForbidden, respn)
-			return
-		}
-	}
-
-	var category model.Category
-	if err := json.NewDecoder(req.Body).Decode(&category); err != nil {
-		var respn model.Response
-		respn.Status = "Error: Bad Request"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	newCategory := model.Category{
-		CategoryName: category.CategoryName,
-	}
-	_, err = atdb.InsertOneDoc(config.Mongoconn, "category", newCategory)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Gagal Insert Database"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotModified, respn)
-		return
-	}
-	response := map[string]interface{}{
-		"status":  "success",
-		"message": "Kategori berhasil ditambahkan",
-		"name":    payload.Alias,
-		"data":    newCategory,
-	}
-	at.WriteJSON(respw, http.StatusOK, response)
-}
-
-func GetAllCategory(respw http.ResponseWriter, req *http.Request) {
-	data, err := atdb.GetAllDoc[[]model.Category](config.Mongoconn, "category", primitive.M{})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Data menu tidak ditemukan"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	if len(data) == 0 {
-		var respn model.Response
-		respn.Status = "Error: Data menu kosong"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	categoryMap := make(map[string]primitive.ObjectID)
-
-	for _, category := range data {
-		categoryMap[category.CategoryName] = category.ID
-	}
-
-	var categories []map[string]interface{}
-
-	for category, id := range categoryMap {
-		categories = append(categories, map[string]interface{}{
-			"id":   id,
-			"name": category,
-		})
-	}
-
-	at.WriteJSON(respw, http.StatusOK, categories)
-}
