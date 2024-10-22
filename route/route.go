@@ -179,6 +179,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetCategoryByID(w, r)
 	case method == "PUT" && path == "/update/category":
 		controller.UpdateCategory(w, r)
+	case method == "DELETE" && path == "/delete/category":
+		controller.UpdateCategory(w, r)
 	default:
 		controller.NotFoundRoute(w, r)
 	}

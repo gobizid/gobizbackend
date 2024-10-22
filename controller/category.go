@@ -195,3 +195,73 @@ func UpdateCategory(respw http.ResponseWriter, r *http.Request){
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
+	// Ambil token dari header
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+	}
+
+	// Ambil parameter slug atau ID dari URL
+	query := req.URL.Query()
+	categorySlug := query.Get("slug")
+	categoryID := query.Get("id")
+
+	if categorySlug == "" && categoryID == "" {
+			var respn model.Response
+			respn.Status = "Error"
+			respn.Message = "Slug atau ID kategori harus diberikan"
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
+	}
+
+	// Tentukan filter berdasarkan slug atau ID
+	filter := bson.M{}
+	if categorySlug != "" {
+			filter["slug"] = categorySlug
+	} else {
+			objectID, err := primitive.ObjectIDFromHex(categoryID)
+			if err != nil {
+					var respn model.Response
+					respn.Status = "Error"
+					respn.Message = "ID kategori tidak valid"
+					at.WriteJSON(respw, http.StatusBadRequest, respn)
+					return
+			}
+			filter["_id"] = objectID
+	}
+
+	// Hapus kategori dari database
+	result, err := config.Mongoconn.Collection("kategori").DeleteOne(context.TODO(), filter)
+	if err != nil {
+			var respn model.Response
+			respn.Status = "Error"
+			respn.Message = "Gagal menghapus kategori"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+	}
+
+	if result.DeletedCount == 0 {
+			var respn model.Response
+			respn.Status = "Error"
+			respn.Message = "Kategori tidak ditemukan"
+			at.WriteJSON(respw, http.StatusNotFound, respn)
+			return
+	}
+
+	// Kirim response sukses
+	var respn model.Response
+	respn.Status = "Success"
+	respn.Message = "Kategori berhasil dihapus"
+	at.WriteJSON(respw, http.StatusOK, respn)
+}
+
+
