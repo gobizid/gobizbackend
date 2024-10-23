@@ -612,3 +612,37 @@ func GetAllSlug(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, allMarkets)
 }
 
+func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
+	// Mengambil semua data toko dari collection 'menu'
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data market tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Jika tidak ada data toko
+	if len(tokos) == 0 {
+		var respn model.Response
+		respn.Status = "Error: Data market kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Menyimpan hasil semua market (toko)
+	var allMarkets []map[string]interface{}
+
+	for _, toko := range tokos {
+		// Menambahkan setiap toko ke dalam hasil
+		allMarkets = append(allMarkets, map[string]interface{}{
+			"id":          toko.ID.Hex(),
+			"nama_toko":   toko.NamaToko,
+			"user": toko.User, // Tambahkan informasi user jika diperlukan
+		})
+	}
+
+	// Mengembalikan data market dalam format JSON
+	at.WriteJSON(respw, http.StatusOK, allMarkets)
+}
