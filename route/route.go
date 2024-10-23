@@ -181,6 +181,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.UpdateCategory(w, r)
 	case method == "DELETE" && path == "/delete/category":
 		controller.UpdateCategory(w, r)
+
+		// address market
+	case method == "GET" && path == "/market/address":
+		controller.GetAllMarketAddress(w, r)
 	default:
 		controller.NotFoundRoute(w, r)
 	}

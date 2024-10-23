@@ -532,3 +532,47 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
+	// Mengambil semua data toko dari collection 'toko' yang berisi informasi alamat dan user
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data toko tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Jika tidak ada data toko
+	if len(tokos) == 0 {
+		var respn model.Response
+		respn.Status = "Error: Data toko kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	var allAddress []map[string]interface{}
+
+	for _, toko := range tokos {
+		address := toko.Alamat
+		for _, user := range toko.User {
+			allAddress = append(allAddress, map[string]interface{}{
+				"street":      address.Street,
+				"province":    address.Province,
+				"city":        address.City,
+				"description": address.Description,
+				"postal_code": address.PostalCode,
+				"user": map[string]interface{}{
+					"nama":   user.Name,   // Asumsikan ada field Nama di model Userdomyikado
+					"email":  user.Email,  // Asumsikan ada field Email di model Userdomyikado
+					"user_id": user.ID,    // Asumsikan ada field ID di model Userdomyikado
+				},
+			})
+		}
+	}
+
+	// Mengembalikan data market dalam format JSON
+	at.WriteJSON(respw, http.StatusOK, allAddress)
+}
+
