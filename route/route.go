@@ -185,6 +185,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// address market
 	case method == "GET" && path == "/market/address":
 		controller.GetAllMarketAddress(w, r)
+		
+		// Slug market
+	case method == "GET" && path == "/market/slug":
+		controller.GetAllSlug(w, r)
+		
 	default:
 		controller.NotFoundRoute(w, r)
 	}
