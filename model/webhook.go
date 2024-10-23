@@ -80,6 +80,7 @@ type Userdomyikado struct {
 	LinkedDevice         string             `json:"linkeddevice,omitempty" bson:"linkeddevice,omitempty"`
 	JumlahAntrian        int                `json:"jumlahantrian,omitempty" bson:"jumlahantrian,omitempty"`
 	Password             string             `json:"password,omitempty" bson:"password,omitempty"`
+	Role                 string             `json:"role,omitempty" bson:"role,omitempty"`
 }
 
 type Task struct {

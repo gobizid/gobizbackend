@@ -466,6 +466,11 @@ func RegisterAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := request.Role
+	if role == "" {
+		role = "user"
+	}
+
 	newUser := model.Userdomyikado{
 		Name:          request.Name,
 		PhoneNumber:   request.PhoneNumber,
@@ -475,6 +480,7 @@ func RegisterAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		LinkedDevice:  "v4.public.eyJhbGlhcyI6IlJvbGx5IE1hdWxhbmEgQXdhbmdnYSIsImV4cCI6IjIwMjktMDgtMDlUMTQ6MzQ6MjlaIiwiaWF0IjoiMjAyNC0wOC0wOVQwODozNDoyOVoiLCJpZCI6IjYyODEzMTIwMDAzMDAiLCJuYmYiOiIyMDI0LTA4LTA5VDA4OjM0OjI5WiJ9FXnQi5vnQ7YXHteepJ14Xcc-wPc0PLQ0n4LSbGFijfdkStVeD6QIDuwQGeaq7xETWmmtFXjfkmmfDG0WHmAlBA",
 		JumlahAntrian: 7,
 		Password:      hashedPassword,
+		Role:          role,
 	}
 
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "user", newUser)
@@ -495,6 +501,7 @@ func RegisterAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 		"team":          newUser.Team,
 		"scope":         newUser.Scope,
 		"jumlahAntrian": newUser.JumlahAntrian,
+		"role":          newUser.Role,
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
@@ -554,4 +561,55 @@ func LoginAkunPenjual(respw http.ResponseWriter, r *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func GetMenu(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	var datauser model.Userdomyikado
+	err = config.Mongoconn.Collection("user").FindOne(context.Background(), bson.M{"phonenumber": payload.Id}).Decode(&datauser)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: User tidak ditemukan"
+		respn.Response = "User with the provided role ID not found"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	if datauser.Role == "user" {
+		response := map[string]interface{}{
+			"message": "Menu for user",
+			"menu":    "/user",
+		}
+		at.WriteJSON(respw, http.StatusOK, response)
+		return
+	} else if datauser.Role == "admin" {
+		response := map[string]interface{}{
+			"message": "Menu for admin",
+			"menu":    "/admin",
+		}
+		at.WriteJSON(respw, http.StatusOK, response)
+		return
+	} else {
+		response := map[string]interface{}{
+			"message": "Role not recognized",
+			"menu":    "/505",
+		}
+		at.WriteJSON(respw, http.StatusForbidden, response)
+		return
+	}
 }

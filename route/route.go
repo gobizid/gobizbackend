@@ -149,6 +149,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.RegisterAkunPenjual(w, r)
 	case method == "POST" && path == "/auth/login/form":
 		controller.LoginAkunPenjual(w, r)
+	case method == "GET" && path == "/auth/menu":
+		controller.GetMenu(w, r)
 
 		// menu and toko
 	case method == "POST" && path == "/create/toko":
@@ -187,11 +189,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// address market
 	case method == "GET" && path == "/market/address":
 		controller.GetAllMarketAddress(w, r)
-		
+
 		// Slug market
 	case method == "GET" && path == "/market/slug":
 		controller.GetAllSlug(w, r)
-		
+
 	default:
 		controller.NotFoundRoute(w, r)
 	}
