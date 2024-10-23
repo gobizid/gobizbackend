@@ -20,16 +20,20 @@ import (
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	// Decode token and get user information
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = at.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-	}
 
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
 	// Parse multipart form (10 MB limit)
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
@@ -250,14 +254,19 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
 	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = at.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	// Ambil ID toko dari query parameter
@@ -447,14 +456,19 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
 	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = at.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	// Ambil ID toko dari query parameter
@@ -518,4 +532,3 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-

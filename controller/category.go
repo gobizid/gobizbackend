@@ -130,17 +130,22 @@ func GetCategoryByID(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-func UpdateCategory(respw http.ResponseWriter, req *http.Request){
+func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
 	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = at.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	categoryID := req.URL.Query().Get("id")
@@ -199,14 +204,19 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request){
 func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
 	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Token Tidak Valid"
-		respn.Info = at.GetSecretFromHeader(req)
-		respn.Location = "Decode Token Error"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	// Ambil ID toko dari query parameter
@@ -238,7 +248,6 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-
 	// Coba hapus data Category dari database berdasarkan ID
 	result, err := config.Mongoconn.Collection("menu").DeleteOne(context.TODO(), filter)
 	if err != nil {
@@ -260,9 +269,7 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dihapus",
-		"user" : payload.Alias,
+		"user":    payload.Alias,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-
-
