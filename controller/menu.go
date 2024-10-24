@@ -343,8 +343,7 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 
 	// Query to find the store (toko) by user phone number from "toko" collection
 	filter := bson.M{"user.phonenumber": payload.Id}
-	var docToko model.Toko
-	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter) // Use "toko" collection, not "menu"
+	MenuDataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter) // Use "toko" collection, not "menu"
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -354,22 +353,22 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check if the menu index is within bounds
-	if menuIndex < 0 || menuIndex >= len(docToko.Menu) {
+	if menuIndex < 0 || menuIndex >= len(MenuDataToko.Menu) {
 		var respn model.Response
 		respn.Status = "Error: Menu index out of bounds"
-		respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d, data toko: %v", menuIndex, len(docToko.Menu), docToko.NamaToko)
+		respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d, data toko: %v", menuIndex, len(MenuDataToko.Menu), MenuDataToko.NamaToko)
 
 		// Optionally, you can also log the retrieved Toko document for debugging purposes
-		fmt.Printf("Menu index error: Retrieved Toko: %+v\n", docToko)
-		fmt.Printf("Menu index: %d, Menu length: %d\n", menuIndex, len(docToko.Menu))
+		fmt.Printf("Menu index error: Retrieved Toko: %+v\n", MenuDataToko)
+		fmt.Printf("Menu index: %d, Menu length: %d\n", menuIndex, len(MenuDataToko.Menu))
 
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
 	// Check if the diskon exists
-	var existingDiskon model.Diskon
-	_, err = atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	// var existingDiskon model.Diskon
+	DataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Diskon not found"
@@ -379,12 +378,12 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Update the selected menu item with the diskon
-	docToko.Menu[menuIndex].Diskon = append(docToko.Menu[menuIndex].Diskon, existingDiskon)
+	MenuDataToko.Menu[menuIndex].Diskon = append(MenuDataToko.Menu[menuIndex].Diskon, DataDiskon)
 
 	// Update the toko document with the new menu array
 	update := bson.M{
 		"$set": bson.M{
-			"menu": docToko.Menu,
+			"menu": MenuDataToko.Menu,
 		},
 	}
 
