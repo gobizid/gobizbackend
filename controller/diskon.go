@@ -30,6 +30,7 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Query to find the store (toko) by user phone number
 	filter := bson.M{"user.phonenumber": payload.Id}
 	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
@@ -40,6 +41,7 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Parse the incoming request body to extract diskon data
 	var datadiskon model.Diskon
 	if err := json.NewDecoder(req.Body).Decode(&datadiskon); err != nil {
 		var respn model.Response
@@ -49,8 +51,17 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Only keep the necessary fields from the Toko document
+	tokoForDiskon := model.Toko{
+		ID:       docToko.ID,
+		NamaToko: docToko.NamaToko,
+		Category: docToko.Category,
+		User:     docToko.User,
+	}
+
+	// Create the Diskon document with the required Toko fields
 	diskonInput := model.Diskon{
-		Toko:            []model.Toko{docToko},
+		Toko:            []model.Toko{tokoForDiskon}, // Only save selected fields from Toko
 		JenisDiskon:     datadiskon.JenisDiskon,
 		NilaiDiskon:     datadiskon.NilaiDiskon,
 		TanggalMulai:    datadiskon.TanggalMulai,
@@ -58,6 +69,7 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		Status:          datadiskon.Status,
 	}
 
+	// Insert the Diskon document into the database
 	InsertData, err := atdb.InsertOneDoc(config.Mongoconn, "diskon", diskonInput)
 	if err != nil {
 		var respn model.Response
@@ -67,11 +79,14 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Prepare the response
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Diskon berhasil ditambahkan",
 		"data":    InsertData,
 	}
+
+	// Send the response back to the client
 	at.WriteJSON(respw, http.StatusCreated, response)
 }
 
@@ -278,5 +293,3 @@ func DeleteDiskon(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-
-
