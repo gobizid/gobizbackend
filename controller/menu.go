@@ -160,47 +160,47 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
-			_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-			if err != nil {
-					var respn model.Response
-					respn.Status = "Error: Token Tidak Valid"
-					respn.Response = err.Error()
-					at.WriteJSON(respw, http.StatusForbidden, respn)
-					return
-			}
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	// Ambil parameter slug dari query params
 	slug := req.URL.Query().Get("slug")
 	if slug == "" {
-			var respn model.Response
-			respn.Status = "Error: Slug tidak ditemukan"
-			respn.Response = "Slug tidak disertakan dalam permintaan"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Slug tidak ditemukan"
+		respn.Response = "Slug tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
 	}
 
 	// Cari toko berdasarkan slug
 	var toko model.Toko
 	err = config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
 	if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Toko tidak ditemukan"
-			respn.Response = "Slug: " + slug + ", Error: " + err.Error()
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		respn.Response = "Slug: " + slug + ", Error: " + err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
 	// Jika toko ditemukan, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
-			"status":    "success",
-			"message":   "Menu berhasil diambil",
-			"nama_toko": toko.NamaToko,
-			"slug":      toko.Slug,
-			"category":  toko.Category,
-			"alamat":    toko.Alamat,
-			"owner":     toko.User,
-			"data":      toko.Menu,
+		"status":    "success",
+		"message":   "Menu berhasil diambil",
+		"nama_toko": toko.NamaToko,
+		"slug":      toko.Slug,
+		"category":  toko.Category,
+		"alamat":    toko.Alamat,
+		"owner":     toko.User,
+		"data":      toko.Menu,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
@@ -209,30 +209,30 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
-			_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-			if err != nil {
-					var respn model.Response
-					respn.Status = "Error: Token Tidak Valid"
-					respn.Response = err.Error()
-					at.WriteJSON(respw, http.StatusForbidden, respn)
-					return
-			}
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	data, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{"name": "Sayur Lodeh Gaming"})
 	if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Data menu tidak ditemukan"
-			respn.Response = err.Error()
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Data menu tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
 	if len(data) == 0 {
-			var respn model.Response
-			respn.Status = "Error: Data menu kosong"
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Data menu kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
 	// Jika data ditemukan, kirimkan data dalam bentuk JSON
@@ -260,26 +260,16 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 
 	for _, toko := range data {
 		for _, menu := range toko.Menu {
-			// Calculate the final price considering the discount
-			finalPrice := menu.Price
+			var finalPrice interface{} = nil
 
-			// Check if the menu has a valid discount
-			if len(menu.Diskon) > 0 {
-				// Assuming the first discount in the array is applied
-				diskon := menu.Diskon[0]
-				if diskon.JenisDiskon == "Persentase" {
-					// Apply percentage discount
-					discountValue := float64(menu.Price) * float64(diskon.NilaiDiskon) / 100
-					finalPrice = menu.Price - int(discountValue)
-				}
+			if len(menu.Diskon) > 0 && menu.Diskon[0].JenisDiskon == "Persentase" {
+				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
+				finalPrice = menu.Price - int(discountValue)
 			}
 
-			// Append the menu details including the discounted price
 			allMenus = append(allMenus, map[string]interface{}{
 				"name":        menu.Name,
-				"price":       menu.Price,
-				"final_price": finalPrice, // Include the final price after discount
-				"diskon":      menu.Diskon,
+				"final_price": finalPrice,
 				"rating":      menu.Rating,
 				"sold":        menu.Sold,
 				"image":       menu.Image,
@@ -294,44 +284,44 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
-			_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-			if err != nil {
-					var respn model.Response
-					respn.Status = "Error: Token Tidak Valid"
-					respn.Response = err.Error()
-					at.WriteJSON(respw, http.StatusForbidden, respn)
-					return
-			}
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
 	}
 
 	category := req.URL.Query().Get("category")
 	if category == "" {
-			var respn model.Response
-			respn.Status = "Error: Kategori tidak ditemukan"
-			respn.Response = "Kategori tidak disertakan dalam permintaan"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Kategori tidak ditemukan"
+		respn.Response = "Kategori tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
 	}
 
 	var menu model.Menu
 	err = config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"category": category}).Decode(&menu)
 	if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Menu tidak ditemukan"
-			respn.Response = "Category: " + category + ", Error: " + err.Error()
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-			return
+		var respn model.Response
+		respn.Status = "Error: Menu tidak ditemukan"
+		respn.Response = "Category: " + category + ", Error: " + err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
 	response := map[string]interface{}{
-			"status":  "success",
-			"message": "Menu berhasil diambil",
-			"name":    menu.Name,
-			"image":   menu.Image,
-			"diskon":  menu.Diskon,
-			"price":   menu.Price,
-			"rating":  menu.Rating,
-			"sold":    menu.Sold,
+		"status":  "success",
+		"message": "Menu berhasil diambil",
+		"name":    menu.Name,
+		"image":   menu.Image,
+		"diskon":  menu.Diskon,
+		"price":   menu.Price,
+		"rating":  menu.Rating,
+		"sold":    menu.Sold,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
@@ -572,4 +562,3 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, responseData)
 }
-
