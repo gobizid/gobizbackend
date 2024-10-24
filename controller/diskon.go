@@ -30,7 +30,7 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	filter := bson.M{"user.phonenumber": payload.Id}
-	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Store not found"
