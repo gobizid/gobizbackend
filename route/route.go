@@ -174,6 +174,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/menu":
 		controller.GetDataMenuByCategory(w, r)
 
+		// diskon
+	case method == "POST" && path == "/create/diskon":
+		controller.CreateDiskon(w, r)
+
 		// category
 	case method == "POST" && path == "/create/category":
 		controller.CreateCategory(w, r)

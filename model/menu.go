@@ -41,3 +41,13 @@ type Category struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	CategoryName string             `bson:"name_category" json:"name_category"`
 }
+
+type Diskon struct {
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Toko            []Toko             `bson:"toko,omitempty" json:"toko,omitempty"`
+	JenisDiskon     string             `bson:"jenis_diskon,omitempty" json:"jenis_diskon,omitempty"`
+	NilaiDiskon     int                `bson:"nilai_diskon,omitempty" json:"nilai_diskon,omitempty"`
+	TanggalMulai    time.Time          `bson:"tanggal_mulai,omitempty" json:"tanggal_mulai,omitempty"`
+	TanggalBerakhir time.Time          `bson:"tanggal_berakhir,omitempty" json:"tanggal_berakhir,omitempty"`
+	Status          string             `bson:"status,omitempty" json:"status,omitempty"`
+}
