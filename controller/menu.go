@@ -341,10 +341,10 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Query to find the store (toko) by user phone number
+	// Query to find the store (toko) by user phone number from "toko" collection
 	filter := bson.M{"user.phonenumber": payload.Id}
 	var docToko model.Toko
-	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter) // Use "toko" collection, not "menu"
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -353,19 +353,19 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// // Check if the menu index is within bounds
-	// if menuIndex < 0 || menuIndex >= len(docToko.Menu) {
-	// 	var respn model.Response
-	// 	respn.Status = "Error: Menu index out of bounds"
-	// 	respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d", menuIndex, len(docToko.Menu))
+	// Check if the menu index is within bounds
+	if menuIndex < 0 || menuIndex >= len(docToko.Menu) {
+		var respn model.Response
+		respn.Status = "Error: Menu index out of bounds"
+		respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d", menuIndex, len(docToko.Menu))
 
-	// 	// Optionally, you can also log the retrieved Toko document for debugging purposes
-	// 	fmt.Printf("Menu index error: Retrieved Toko: %+v\n", docToko)
-	// 	fmt.Printf("Menu index: %d, Menu length: %d\n", menuIndex, len(docToko.Menu))
+		// Optionally, you can also log the retrieved Toko document for debugging purposes
+		fmt.Printf("Menu index error: Retrieved Toko: %+v\n", docToko)
+		fmt.Printf("Menu index: %d, Menu length: %d\n", menuIndex, len(docToko.Menu))
 
-	// 	at.WriteJSON(respw, http.StatusBadRequest, respn)
-	// 	return
-	// }
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
 	// Check if the diskon exists
 	var existingDiskon model.Diskon
@@ -388,7 +388,7 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		},
 	}
 
-	_, err = config.Mongoconn.Collection("toko").UpdateOne(req.Context(), filter, update)
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Failed to update menu with diskon"
