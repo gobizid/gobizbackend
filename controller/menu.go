@@ -299,11 +299,22 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	menuID := req.URL.Query().Get("menu_id")
-	if menuID == "" {
+	// Get menuIndex from URL query
+	menuIndexStr := req.URL.Query().Get("menu_index")
+	if menuIndexStr == "" {
 		var respn model.Response
-		respn.Status = "Error: ID Menu tidak ditemukan"
-		respn.Response = "ID Menu tidak disertakan dalam permintaan"
+		respn.Status = "Error: Index Menu tidak ditemukan"
+		respn.Response = "Index Menu tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Convert menuIndex to an integer
+	menuIndex, err := strconv.Atoi(menuIndexStr)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid MenuIndex"
+		respn.Response = "MenuIndex should be a valid integer"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
@@ -320,7 +331,7 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Convert the DiskonID and MenuID to ObjectIDs
+	// Convert the DiskonID to ObjectID
 	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
 	if err != nil {
 		var respn model.Response
@@ -330,15 +341,28 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	menuObjID, err := primitive.ObjectIDFromHex(menuID)
+	// Query to find the store (toko) by user phone number
+	filter := bson.M{"user.phonenumber": payload.Id}
+	var docToko model.Toko
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Invalid MenuID"
-		respn.Response = "Invalid menu ID format"
+		respn.Status = "Error: Toko tidak ditemukan"
+		respn.Response = "Toko with the user's phone number does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Check if the menu index is within bounds
+	if menuIndex < 0 || menuIndex >= len(docToko.Menu) {
+		var respn model.Response
+		respn.Status = "Error: Menu index out of bounds"
+		respn.Response = "Invalid menu index"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
+	// Check if the diskon exists
 	var existingDiskon model.Diskon
 	_, err = atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
 	if err != nil {
@@ -349,9 +373,17 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	filter := bson.M{"_id": menuObjID}
-	update := bson.M{"$addToSet": bson.M{"diskon": existingDiskon}} // Use $addToSet to avoid duplicates
-	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	// Update the selected menu item with the diskon
+	docToko.Menu[menuIndex].Diskon = append(docToko.Menu[menuIndex].Diskon, existingDiskon)
+
+	// Update the toko document with the new menu array
+	update := bson.M{
+		"$set": bson.M{
+			"menu": docToko.Menu,
+		},
+	}
+
+	_, err = config.Mongoconn.Collection("toko").UpdateOne(req.Context(), filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Failed to update menu with diskon"
@@ -374,5 +406,4 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 
 	// Write the response with the user information included
 	at.WriteJSON(respw, http.StatusOK, responseData)
-
 }
