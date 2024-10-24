@@ -449,3 +449,127 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, responseData)
 }
+
+// Belum fix
+func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
+	// Dekode token untuk validasi
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil parameter menu_index dari query string
+	menuIndexStr := req.URL.Query().Get("menu_index")
+	if menuIndexStr == "" {
+		var respn model.Response
+		respn.Status = "Error: Index Menu tidak ditemukan"
+		respn.Response = "Index Menu tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi menuIndex menjadi integer
+	menuIndex, err := strconv.Atoi(menuIndexStr)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid MenuIndex"
+		respn.Response = "MenuIndex should be a valid integer"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Dekode request body untuk mendapatkan DiskonID
+	var requestDiskon struct {
+		DiskonID string `json:"diskonId"`
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi DiskonID menjadi ObjectID MongoDB
+	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "Invalid diskon ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Filter berdasarkan nomor telepon user dari token payload
+	filter := bson.M{"user.phonenumber": payload.Id}
+	MenuDataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		respn.Response = "Toko with the user's phone number does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Cek apakah menuIndex valid
+	if menuIndex < 0 || menuIndex >= len(MenuDataToko.Menu) {
+		var respn model.Response
+		respn.Status = "Error: Menu index out of bounds"
+		respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d", menuIndex, len(MenuDataToko.Menu))
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Cari diskon berdasarkan DiskonID
+	DataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon not found"
+		respn.Response = "Diskon with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Update diskon pada menu di index yang ditentukan
+	MenuDataToko.Menu[menuIndex].Diskon = append(MenuDataToko.Menu[menuIndex].Diskon, DataDiskon)
+
+	// Lakukan update pada database
+	update := bson.M{
+		"$set": bson.M{
+			"menu": MenuDataToko.Menu,
+		},
+	}
+
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to update menu with diskon"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Response berhasil
+	var respn model.Response
+	respn.Status = "Success"
+	respn.Response = "Diskon updated in the menu successfully"
+
+	responseData := map[string]interface{}{
+		"user":    payload.Id,
+		"message": respn.Response,
+		"status":  respn.Status,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, responseData)
+}
+

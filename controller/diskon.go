@@ -10,6 +10,7 @@ import (
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
@@ -123,3 +124,93 @@ func GetAllDiskon(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+func UpdateDiskon(respw http.ResponseWriter, req *http.Request) {
+	// Dekode token untuk validasi
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil DiskonID dari URL parameter
+	diskonID := req.URL.Query().Get("id")
+	if diskonID == "" {
+		var respn model.Response
+		respn.Status = "Error: DiskonID tidak ditemukan"
+		respn.Response = "DiskonID tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi DiskonID menjadi ObjectID MongoDB
+	diskonObjID, err := primitive.ObjectIDFromHex(diskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "DiskonID format is invalid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Cari diskon berdasarkan DiskonID
+	diskonFilter := bson.M{"_id": diskonObjID}
+	existingDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", diskonFilter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon tidak ditemukan"
+		respn.Response = "Diskon dengan ID ini tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Decode request body untuk mendapatkan data diskon baru
+	var updateDiskon model.Diskon
+	if err := json.NewDecoder(req.Body).Decode(&updateDiskon); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Update diskon yang ada dengan data yang baru
+	existingDiskon.JenisDiskon = updateDiskon.JenisDiskon
+	existingDiskon.NilaiDiskon = updateDiskon.NilaiDiskon
+	existingDiskon.TanggalMulai = updateDiskon.TanggalMulai
+	existingDiskon.TanggalBerakhir = updateDiskon.TanggalBerakhir
+	existingDiskon.Status = updateDiskon.Status
+
+	// Lakukan update di database
+	update := bson.M{
+		"$set": existingDiskon,
+	}
+
+	_, err = config.Mongoconn.Collection("diskon").UpdateOne(req.Context(), diskonFilter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to update diskon"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Diskon berhasil diperbarui",
+		"data":    existingDiskon,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+
