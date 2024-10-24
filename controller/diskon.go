@@ -91,7 +91,17 @@ func GetAllDiskon(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	filter := bson.M{"user.phonenumber": payload.Id}
+	filter := bson.M{
+		"toko": bson.M{
+			"$elemMatch": bson.M{
+				"user": bson.M{
+					"$elemMatch": bson.M{
+						"phonenumber": bson.M{"$regex": payload.Id},
+					},
+				},
+			},
+		},
+	}
 
 	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", filter)
 	if err != nil {
