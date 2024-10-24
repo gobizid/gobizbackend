@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -279,4 +280,99 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		"sold":    menu.Sold,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	menuID := req.URL.Query().Get("menu_id")
+	if menuID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		respn.Response = "ID Menu tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	var requestDiskon struct {
+		DiskonID string `json:"diskonId"`
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Convert the DiskonID and MenuID to ObjectIDs
+	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "Invalid diskon ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	menuObjID, err := primitive.ObjectIDFromHex(menuID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid MenuID"
+		respn.Response = "Invalid menu ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	var existingDiskon model.Diskon
+	_, err = atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon not found"
+		respn.Response = "Diskon with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	filter := bson.M{"_id": menuObjID}
+	update := bson.M{"$addToSet": bson.M{"diskon": existingDiskon}} // Use $addToSet to avoid duplicates
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to update menu with diskon"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	var respn model.Response
+	user := payload.Id // Extract user ID from the payload
+	respn.Status = "Success"
+	respn.Response = "Diskon added to the menu successfully"
+
+	// Add the user to the response as a new field
+	responseData := map[string]interface{}{
+		"user":    user,
+		"message": respn.Response,
+		"status":  respn.Status,
+	}
+
+	// Write the response with the user information included
+	at.WriteJSON(respw, http.StatusOK, responseData)
+
 }
