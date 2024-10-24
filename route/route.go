@@ -179,6 +179,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// diskon
 	case method == "POST" && path == "/create/diskon":
 		controller.CreateDiskon(w, r)
+	case method == "GET" && path == "/diskon":
+		controller.GetAllDiskon(w, r)
 
 		// category
 	case method == "POST" && path == "/create/category":

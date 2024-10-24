@@ -73,3 +73,43 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusCreated, response)
 }
+
+func GetAllDiskon(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	filter := bson.M{"user.phonenumber": payload.Id}
+
+	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Store not found"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+	response := map[string]interface{}{
+		"Status":           "success",
+		"message":          "Diskon berhasil ditemukan",
+		"toko":             diskon.Toko,
+		"jenis_diskon":     diskon.JenisDiskon,
+		"nilai_diskon":     diskon.NilaiDiskon,
+		"tanggal_mulai":    diskon.TanggalMulai,
+		"tanggal_berakhir": diskon.TanggalBerakhir,
+		"status":           diskon.Status,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
