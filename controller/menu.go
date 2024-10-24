@@ -357,7 +357,12 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	if menuIndex < 0 || menuIndex >= len(docToko.Menu) {
 		var respn model.Response
 		respn.Status = "Error: Menu index out of bounds"
-		respn.Response = "Invalid menu index"
+		respn.Response = fmt.Sprintf("Invalid menu index: %d, Menu length: %d", menuIndex, len(docToko.Menu))
+
+		// Optionally, you can also log the retrieved Toko document for debugging purposes
+		fmt.Printf("Menu index error: Retrieved Toko: %+v\n", docToko)
+		fmt.Printf("Menu index: %d, Menu length: %d\n", menuIndex, len(docToko.Menu))
+
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
