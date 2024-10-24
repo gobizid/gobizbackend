@@ -80,12 +80,10 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 
 	menuName := req.FormValue("name")
 	menuPrice := req.FormValue("price")
-	menuOriginalPrice := req.FormValue("originalPrice")
 	menuRating := req.FormValue("rating")
 	menuSold := req.FormValue("sold")
 
 	price, _ := strconv.Atoi(menuPrice)
-	originalPrice, _ := strconv.Atoi(menuOriginalPrice)
 	rating, _ := strconv.ParseFloat(menuRating, 64)
 	sold, _ := strconv.Atoi(menuSold)
 
@@ -115,13 +113,14 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Create the menu with an empty Diskon (null equivalent)
 	newMenu := model.Menu{
-		Name:          menuName,
-		Price:         price,
-		OriginalPrice: originalPrice,
-		Rating:        rating,
-		Sold:          sold,
-		Image:         menuImageURL,
+		Name:   menuName,
+		Price:  price,
+		Diskon: nil, // Setting Diskon to nil (null equivalent in Go)
+		Rating: rating,
+		Sold:   sold,
+		Image:  menuImageURL,
 	}
 
 	existingToko.Menu = append(existingToko.Menu, newMenu)
@@ -236,12 +235,12 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	for _, toko := range data {
 		for _, menu := range toko.Menu {
 			allMenus = append(allMenus, map[string]interface{}{
-				"name":          menu.Name,
-				"price":         menu.Price,
-				"originalPrice": menu.OriginalPrice,
-				"rating":        menu.Rating,
-				"sold":          menu.Sold,
-				"image":         menu.Image,
+				"name":   menu.Name,
+				"price":  menu.Price,
+				"diskon": menu.Diskon,
+				"rating": menu.Rating,
+				"sold":   menu.Sold,
+				"image":  menu.Image,
 			})
 		}
 	}
@@ -270,14 +269,14 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"status":        "success",
-		"message":       "Menu berhasil diambil",
-		"name":          menu.Name,
-		"image":         menu.Image,
-		"originalprice": menu.OriginalPrice,
-		"price":         menu.Price,
-		"rating":        menu.Rating,
-		"sold":          menu.Sold,
+		"status":  "success",
+		"message": "Menu berhasil diambil",
+		"name":    menu.Name,
+		"image":   menu.Image,
+		"diskon":  menu.Diskon,
+		"price":   menu.Price,
+		"rating":  menu.Rating,
+		"sold":    menu.Sold,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }

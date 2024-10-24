@@ -7,12 +7,12 @@ import (
 )
 
 type Menu struct {
-	Name          string  `json:"name" bson:"name"`
-	Price         int     `json:"price" bson:"price"`
-	OriginalPrice int     `json:"originalPrice" bson:"originalPrice"`
-	Rating        float64 `json:"rating" bson:"rating"`
-	Sold          int     `json:"sold" bson:"sold"`
-	Image         string  `json:"image" bson:"image"`
+	Name   string   `json:"name" bson:"name"`
+	Price  int      `json:"price" bson:"price"`
+	Diskon []Diskon `json:"diskon" bson:"diskon"`
+	Rating float64  `json:"rating" bson:"rating"`
+	Sold   int      `json:"sold" bson:"sold"`
+	Image  string   `json:"image" bson:"image"`
 }
 
 type Toko struct {
