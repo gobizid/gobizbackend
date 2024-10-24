@@ -235,13 +235,29 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 
 	for _, toko := range data {
 		for _, menu := range toko.Menu {
+			// Calculate the final price considering the discount
+			finalPrice := menu.Price
+
+			// Check if the menu has a valid discount
+			if len(menu.Diskon) > 0 {
+				// Assuming the first discount in the array is applied
+				diskon := menu.Diskon[0]
+				if diskon.JenisDiskon == "Persentase" {
+					// Apply percentage discount
+					discountValue := float64(menu.Price) * float64(diskon.NilaiDiskon) / 100
+					finalPrice = menu.Price - int(discountValue)
+				}
+			}
+
+			// Append the menu details including the discounted price
 			allMenus = append(allMenus, map[string]interface{}{
-				"name":   menu.Name,
-				"price":  menu.Price,
-				"diskon": menu.Diskon,
-				"rating": menu.Rating,
-				"sold":   menu.Sold,
-				"image":  menu.Image,
+				"name":        menu.Name,
+				"price":       menu.Price,
+				"final_price": finalPrice, // Include the final price after discount
+				"diskon":      menu.Diskon,
+				"rating":      menu.Rating,
+				"sold":        menu.Sold,
+				"image":       menu.Image,
 			})
 		}
 	}
