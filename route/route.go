@@ -185,6 +185,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.CreateDiskon(w, r)
 	case method == "PUT" && path == "/update/diskon":
 		controller.UpdateDiskon(w, r)
+	case method == "DELETE" && path == "/delete/diskon":
+		controller.DeleteDiskon(w, r)
 
 		// category
 	case method == "POST" && path == "/create/category":
