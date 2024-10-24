@@ -344,7 +344,7 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	// Query to find the store (toko) by user phone number
 	filter := bson.M{"user.phonenumber": payload.Id}
 	var docToko model.Toko
-	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
