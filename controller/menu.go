@@ -261,18 +261,21 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	for _, toko := range data {
 		for _, menu := range toko.Menu {
 			var finalPrice interface{} = nil
+			totalDiscount := "Rp. 0.00"
 
 			if len(menu.Diskon) > 0 && menu.Diskon[0].JenisDiskon == "Persentase" {
 				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
 				finalPrice = menu.Price - int(discountValue)
+				totalDiscount = fmt.Sprintf("Rp. %.2f", discountValue)
 			}
 
 			allMenus = append(allMenus, map[string]interface{}{
-				"name":        menu.Name,
-				"final_price": finalPrice,
-				"rating":      menu.Rating,
-				"sold":        menu.Sold,
-				"image":       menu.Image,
+				"name":           menu.Name,
+				"final_price":    finalPrice,
+				"total_discount": totalDiscount,
+				"rating":         menu.Rating,
+				"sold":           menu.Sold,
+				"image":          menu.Image,
 			})
 		}
 	}
