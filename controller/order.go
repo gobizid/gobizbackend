@@ -12,8 +12,10 @@ import (
 	"github.com/gocroot/helper/atapi"
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/jualin"
+	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // Fungsi untuk menangani request order
@@ -82,4 +84,81 @@ func GetDataOrder(w http.ResponseWriter, r *http.Request) {
 	// Mengembalikan data order dalam bentuk JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(orders)
+}
+
+func CreateOrder(respw http.ResponseWriter, req *http.Request) {
+	// Decode the token for authentication
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Retrieve user data by phone number
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Parse the order request body
+	var orderRequest model.PaymentOrder
+	if err := json.NewDecoder(req.Body).Decode(&orderRequest); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	var totalAmount int
+	var orderedItems []model.Menu
+	for _, menuName := range orderRequest.Menu {
+		dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", primitive.M{"name": menuName})
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Data menu tidak ditemukan"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusNotFound, respn)
+			return
+		}
+
+		price := dataMenu.Price
+		if dataMenu.Price > 0 {
+			price -= dataMenu.Price
+		}
+		totalAmount += price
+
+		orderedItems = append(orderedItems, dataMenu)
+	}
+
+	orderInput := model.PaymentOrder{
+		User:          []model.Userdomyikado{docuser},
+		Menu:          orderedItems,
+		Total:         totalAmount,
+		Payment:       orderRequest.Payment,
+		PaymentMethod: orderRequest.PaymentMethod,
+	}
+
+	response, err := atdb.InsertOneDoc(config.Mongoconn, "order", orderInput)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal Insert Database"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
 }

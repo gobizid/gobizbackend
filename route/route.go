@@ -208,6 +208,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/market/slug":
 		controller.GetAllSlug(w, r)
 
+		// order Dev
+	case method == "POST" && path == "/order":
+		controller.CreateOrder(w, r)
+
 	default:
 		controller.NotFoundRoute(w, r)
 	}
