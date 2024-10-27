@@ -308,8 +308,8 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var menu model.Menu
-	err = config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"category": category}).Decode(&menu)
+	var toko model.Toko
+	err = config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"category": category}).Decode(&toko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Menu tidak ditemukan"
@@ -318,16 +318,39 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var menusByCategory []map[string]interface{}
+	for _, menu := range toko.Menu {
+		var finalPrice interface{} = nil
+		var totalDiscount interface{} = 0
+
+		// Hitung harga akhir dan diskon
+		if len(menu.Diskon) > 0 && menu.Diskon[0].JenisDiskon == "Persentase" {
+			discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
+			finalPrice = menu.Price - int(discountValue)
+			totalDiscount = int(discountValue)
+		} else {
+			finalPrice = menu.Price
+			totalDiscount = 0
+		}
+
+		// Tambahkan menu yang sesuai kategori ke dalam hasil response
+		menusByCategory = append(menusByCategory, map[string]interface{}{
+			"name":           menu.Name,
+			"final_price":    finalPrice,
+			"total_discount": totalDiscount,
+			"rating":         menu.Rating,
+			"sold":           menu.Sold,
+			"image":          menu.Image,
+		})
+	}
+
+	// Response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil diambil",
-		"name":    menu.Name,
-		"image":   menu.Image,
-		"diskon":  menu.Diskon,
-		"price":   menu.Price,
-		"rating":  menu.Rating,
-		"sold":    menu.Sold,
+		"data":    menusByCategory,
 	}
+
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
@@ -566,4 +589,61 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, responseData)
+}
+
+// belum di tes
+func UpdateMenuToRemoveDiskonByName(respw http.ResponseWriter, req *http.Request) {
+	// Dekode token untuk validasi
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil slug toko dan nama menu dari query parameter
+	slug := req.URL.Query().Get("slug")
+	menuName := req.URL.Query().Get("menu_name")
+	if slug == "" || menuName == "" {
+		var respn model.Response
+		respn.Status = "Error: Slug toko atau nama menu tidak ditemukan"
+		respn.Response = "Slug toko atau nama menu tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Filter untuk menemukan toko dengan slug yang sesuai dan menu yang memiliki nama yang sesuai
+	filter := bson.M{
+		"slug":      slug,
+		"menu.name": menuName,
+	}
+
+	// Update untuk mengatur diskon menu tertentu menjadi null
+	update := bson.M{
+		"$set": bson.M{"menu.$.diskon": nil},
+	}
+
+	// Lakukan update di database
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus diskon pada menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Diskon berhasil dihapus dari menu",
+		"menu":    menuName,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
 }

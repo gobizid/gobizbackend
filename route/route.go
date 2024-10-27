@@ -177,6 +177,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.InsertDiskonToMenu(w, r)
 	case method == "PUT" && path == "/update/menu/diskon":
 		controller.UpdateDiskonInMenu(w, r)
+	case method == "PUT" && path == "/menu/remove/diskon":
+		controller.UpdateMenuToRemoveDiskonByName(w, r)
 
 		// diskon
 	case method == "GET" && path == "/diskon":

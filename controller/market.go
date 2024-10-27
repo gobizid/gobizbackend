@@ -34,7 +34,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-	// Parse multipart form (10 MB limit)
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -44,7 +43,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Get the uploaded image
 	file, header, err := req.FormFile("tokoImage")
 	if err != nil {
 		var respn model.Response
@@ -54,7 +52,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	defer file.Close()
 
-	// Read file content
 	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		var respn model.Response
@@ -63,10 +60,8 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Generate hashed file name for the image
 	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Add file extension
 
-	// Upload the image to GitHub
 	GitHubAccessToken := config.GHAccessToken
 	GitHubAuthorName := "Rolly Maulana Awangga"
 	GitHubAuthorEmail := "awangga@gmail.com"
@@ -84,20 +79,17 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Get the URL of the uploaded image
 	gambarTokoURL := *content.Content.HTMLURL
 
-	// Get toko details from form data
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
-	categoryID := req.FormValue("category_id") // Get category ID from form data
+	categoryID := req.FormValue("category_id")
 	street := req.FormValue("alamat.street")
 	province := req.FormValue("alamat.province")
 	city := req.FormValue("alamat.city")
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
-	// Convert string categoryID to MongoDB ObjectID
 	objectCategoryID, err := primitive.ObjectIDFromHex(categoryID)
 	if err != nil {
 		var respn model.Response
@@ -106,7 +98,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Query MongoDB untuk mendapatkan detail kategori berdasarkan category_id
 	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
 	if err != nil || categoryDoc.ID == primitive.NilObjectID {
 		var respn model.Response
@@ -116,7 +107,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Check if the user already has a toko
 	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
 	if err == nil && docTokoUser.ID != primitive.NilObjectID {
 		var respn model.Response
@@ -125,7 +115,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Check if the nama_toko or slug already exists
 	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": namaToko})
 	if err == nil && docTokoNama.ID != primitive.NilObjectID {
 		var respn model.Response
@@ -155,7 +144,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	tokoInput := model.Toko{
 		NamaToko:   namaToko,
 		Slug:       slug,
-		Category:   categoryDoc, // Isi nama kategori berdasarkan category_id
+		Category:   categoryDoc,
 		GambarToko: gambarTokoURL,
 		Alamat: model.Address{
 			Street:      street,
@@ -169,7 +158,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		User: []model.Userdomyikado{docuser},
 	}
 
-	// Insert the toko into the database
 	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
 	if err != nil {
 		var respn model.Response
@@ -179,7 +167,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Respond with the created toko data
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dibuat",
@@ -207,7 +194,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
-	// Mengambil semua data toko dari collection 'menu'
 	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
@@ -217,7 +203,6 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Jika tidak ada data toko
 	if len(tokos) == 0 {
 		var respn model.Response
 		respn.Status = "Error: Data market kosong"
@@ -225,11 +210,9 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Menyimpan hasil semua market (toko)
 	var allMarkets []map[string]interface{}
 
 	for _, toko := range tokos {
-		// Menambahkan setiap toko ke dalam hasil
 		allMarkets = append(allMarkets, map[string]interface{}{
 			"id":          toko.ID.Hex(),
 			"nama_toko":   toko.NamaToko,
@@ -243,11 +226,10 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 				"description": toko.Alamat.Description,
 				"postal_code": toko.Alamat.PostalCode,
 			},
-			"user": toko.User, // Tambahkan informasi user jika diperlukan
+			"user": toko.User,
 		})
 	}
 
-	// Mengembalikan data market dalam format JSON
 	at.WriteJSON(respw, http.StatusOK, allMarkets)
 }
 
@@ -564,8 +546,8 @@ func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
 				"description": address.Description,
 				"postal_code": address.PostalCode,
 				"user": map[string]interface{}{
-					"nama":   user.Name,   // Asumsikan ada field Nama di model Userdomyikado
-					"email":  user.Email,  // Asumsikan ada field Email di model Userdomyikado
+					"nama":    user.Name,  // Asumsikan ada field Nama di model Userdomyikado
+					"email":   user.Email, // Asumsikan ada field Email di model Userdomyikado
 					"user_id": user.ID,    // Asumsikan ada field ID di model Userdomyikado
 				},
 			})
@@ -601,10 +583,10 @@ func GetAllSlug(respw http.ResponseWriter, req *http.Request) {
 	for _, toko := range tokos {
 		// Menambahkan setiap toko ke dalam hasil
 		allMarkets = append(allMarkets, map[string]interface{}{
-			"id":          toko.ID.Hex(),
-			"nama_toko":   toko.NamaToko,
-			"slug":        toko.Slug,
-			"user": toko.User, // Tambahkan informasi user jika diperlukan
+			"id":        toko.ID.Hex(),
+			"nama_toko": toko.NamaToko,
+			"slug":      toko.Slug,
+			"user":      toko.User, // Tambahkan informasi user jika diperlukan
 		})
 	}
 
@@ -623,7 +605,6 @@ func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Jika tidak ada data toko
 	if len(tokos) == 0 {
 		var respn model.Response
 		respn.Status = "Error: Data market kosong"
@@ -631,18 +612,15 @@ func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Menyimpan hasil semua market (toko)
 	var allMarkets []map[string]interface{}
 
 	for _, toko := range tokos {
-		// Menambahkan setiap toko ke dalam hasil
 		allMarkets = append(allMarkets, map[string]interface{}{
-			"id":          toko.ID.Hex(),
-			"nama_toko":   toko.NamaToko,
-			"user": toko.User, // Tambahkan informasi user jika diperlukan
+			"id":        toko.ID.Hex(),
+			"nama_toko": toko.NamaToko,
+			"user":      toko.User,
 		})
 	}
 
-	// Mengembalikan data market dalam format JSON
 	at.WriteJSON(respw, http.StatusOK, allMarkets)
 }
