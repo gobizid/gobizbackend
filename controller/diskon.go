@@ -30,7 +30,6 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Query to find the store (toko) by user phone number
 	filter := bson.M{"user.phonenumber": payload.Id}
 	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
@@ -41,7 +40,6 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parse the incoming request body to extract diskon data
 	var datadiskon model.Diskon
 	if err := json.NewDecoder(req.Body).Decode(&datadiskon); err != nil {
 		var respn model.Response
@@ -51,7 +49,6 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Only keep the necessary fields from the Toko document
 	tokoForDiskon := model.Toko{
 		ID:       docToko.ID,
 		NamaToko: docToko.NamaToko,
@@ -59,9 +56,8 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		User:     docToko.User,
 	}
 
-	// Create the Diskon document with the required Toko fields
 	diskonInput := model.Diskon{
-		Toko:            []model.Toko{tokoForDiskon}, // Only save selected fields from Toko
+		Toko:            []model.Toko{tokoForDiskon},
 		JenisDiskon:     datadiskon.JenisDiskon,
 		NilaiDiskon:     datadiskon.NilaiDiskon,
 		TanggalMulai:    datadiskon.TanggalMulai,
@@ -69,7 +65,6 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		Status:          datadiskon.Status,
 	}
 
-	// Insert the Diskon document into the database
 	InsertData, err := atdb.InsertOneDoc(config.Mongoconn, "diskon", diskonInput)
 	if err != nil {
 		var respn model.Response
@@ -79,14 +74,12 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Prepare the response
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Diskon berhasil ditambahkan",
 		"data":    InsertData,
 	}
 
-	// Send the response back to the client
 	at.WriteJSON(respw, http.StatusCreated, response)
 }
 
@@ -289,6 +282,63 @@ func DeleteDiskon(respw http.ResponseWriter, req *http.Request) {
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Diskon berhasil dihapus",
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func GetDiskonById(respw http.ResponseWriter, req *http.Request) {
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	diskonID := req.URL.Query().Get("id_diskon")
+	if diskonID == "" {
+		var respn model.Response
+		respn.Status = "Error: DiskonID tidak ditemukan"
+		respn.Response = "DiskonID tidak disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	diskonObjID, err := primitive.ObjectIDFromHex(diskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "DiskonID format is invalid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	diskonFilter := bson.M{"_id": diskonObjID}
+	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", diskonFilter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon tidak ditemukan"
+		respn.Response = "Diskon dengan ID ini tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"statusResponse":   "success",
+		"message":          "Diskon berhasil ditemukan",
+		"toko":             diskon.Toko,
+		"jenis_diskon":     diskon.JenisDiskon,
+		"nilai_diskon":     diskon.NilaiDiskon,
+		"tanggal_mulai":    diskon.TanggalMulai,
+		"tanggal_berakhir": diskon.TanggalBerakhir,
+		"status":           diskon.Status,
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
