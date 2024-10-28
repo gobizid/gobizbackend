@@ -209,6 +209,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllMarketAddress(w, r)
 	case method == "POST" && path == "/create/address":
 		controller.CreateAlamat(w, r)
+	case method == "GET" && path == "/get/address/province":
+		controller.GetAllProvinces(w, r)
 
 		// Slug market
 	case method == "GET" && path == "/market/slug":

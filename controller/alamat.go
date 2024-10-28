@@ -10,6 +10,7 @@ import (
 	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/watoken"
 	"github.com/gocroot/model"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -69,5 +70,39 @@ func CreateAlamat(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, addAlamat)
-
 }
+
+// func GetAllCities(respw http.ResponseWriter, req *http.Request) {
+// 	collection := config.Mongoconn.Collection("address")
+
+// 	// Distinct untuk mengambil kota unik
+// 	cities, err := collection.Distinct(req.Context(), "city", bson.M{})
+// 	if err != nil {
+// 		var respn model.Response
+// 		respn.Status = "Error: Failed to fetch cities"
+// 		respn.Response = err.Error()
+// 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+// 		return
+// 	}
+
+// 	at.WriteJSON(respw, http.StatusOK, cities)
+// }
+
+func GetAllProvinces(respw http.ResponseWriter, req *http.Request) {
+	collection := config.Mongoconn.Collection("address")
+
+	// Distinct untuk mengambil provinsi unik
+	provinces, err := collection.Distinct(req.Context(), "province", bson.M{})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to fetch provinces"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	at.WriteJSON(respw, http.StatusOK, provinces)
+}
+
+
+
