@@ -35,6 +35,7 @@ type Address struct {
 	PostalCode  string             `bson:"postal_code" json:"postal_code,omitempty"`
 	CreatedAt   time.Time          `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
 	UpdatedAt   time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
+	User        []Userdomyikado    `bson:"user,omitempty" json:"user,omitempty"`
 }
 
 type Category struct {

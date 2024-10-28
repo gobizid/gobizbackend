@@ -204,9 +204,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "DELETE" && path == "/delete/category":
 		controller.UpdateCategory(w, r)
 
-		// address market
+		// address market and users
 	case method == "GET" && path == "/market/address":
 		controller.GetAllMarketAddress(w, r)
+	case method == "POST" && path == "/create/address":
+		controller.CreateAlamat(w, r)
 
 		// Slug market
 	case method == "GET" && path == "/market/slug":
