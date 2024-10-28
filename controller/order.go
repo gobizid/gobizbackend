@@ -102,7 +102,6 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Retrieve user data by phone number
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -112,8 +111,13 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parse the order request body
-	var orderRequest model.PaymentOrder
+	var orderRequest struct {
+		Menu          []string `json:"menu"`
+		Quantity      []int    `json:"quantity"`
+		Payment       string   `json:"payment"`
+		PaymentMethod string   `json:"paymentMethod"`
+	}
+	namaToko := req.URL.Query().Get("namatoko")
 	if err := json.NewDecoder(req.Body).Decode(&orderRequest); err != nil {
 		var respn model.Response
 		respn.Status = "Error: Bad Request"
@@ -122,9 +126,17 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if len(orderRequest.Menu) != len(orderRequest.Quantity) {
+		var respn model.Response
+		respn.Status = "Error: Jumlah menu dan kuantitas tidak sesuai"
+		respn.Response = "Jumlah item menu harus sama dengan jumlah item quantity"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
 	var totalAmount int
 	var orderedItems []model.Menu
-	for _, menuName := range orderRequest.Menu {
+	for i, menuName := range orderRequest.Menu {
 		dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", primitive.M{"name": menuName})
 		if err != nil {
 			var respn model.Response
@@ -134,18 +146,36 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		price := dataMenu.Price
-		if dataMenu.Price > 0 {
-			price -= dataMenu.Price
+		// Apply discount if available
+		finalPrice := dataMenu.Price
+		if dataMenu.Diskon != nil {
+			if dataMenu.Diskon[0].JenisDiskon == "Persentase" {
+				discountValue := float64(dataMenu.Price) * float64(dataMenu.Diskon[0].NilaiDiskon) / 100
+				finalPrice = dataMenu.Price - int(discountValue)
+			} else {
+				finalPrice = dataMenu.Price - dataMenu.Diskon[0].NilaiDiskon
+			}
 		}
-		totalAmount += price
 
-		orderedItems = append(orderedItems, dataMenu)
+		// Update total amount with the final price and quantity
+		quantity := orderRequest.Quantity[i]
+		totalAmount += finalPrice * quantity
+
+		// Append ordered item with calculated final price
+		orderedItem := model.Menu{
+			Name:   dataMenu.Name,
+			Price:  finalPrice,
+			Image:  dataMenu.Image,
+			Rating: dataMenu.Rating,
+			Sold:   dataMenu.Sold,
+		}
+		orderedItems = append(orderedItems, orderedItem)
 	}
 
+	// Create order input with total amount and ordered items
 	orderInput := model.PaymentOrder{
 		User:          []model.Userdomyikado{docuser},
-		Menu:          orderedItems,
+		Orders:        []model.Orders{{Menu: orderedItems, Quantity: 1}},
 		Total:         totalAmount,
 		Payment:       orderRequest.Payment,
 		PaymentMethod: orderRequest.PaymentMethod,
@@ -160,5 +190,34 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Message to WhatsApp
+	message := fmt.Sprintf("*Pesanan Masuk %s*\nNama: %s\nNo HP: %s\nAlamat: %s\n%s\nTotal: Rp %d\nPembayaran: %s",
+		namaToko, docuser.Name, docuser.PhoneNumber, docuser.Address, createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
+	newmsg := model.SendText{
+		To:       "6282184952582",
+		IsGroup:  false,
+		Messages: message,
+	}
+	_, _, err = atapi.PostStructWithToken[model.Response]("token", config.WAAPIToken, newmsg, config.WAAPIMessage)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal Mengirim Pesan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
 	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func createOrderMessageDev(orders []model.Menu, quantities []int) string {
+	var orderStrings []string
+
+	for i, order := range orders {
+		orderString := fmt.Sprintf("%s x%d - Rp %d", order.Name, quantities[i], order.Price*quantities[i])
+		orderStrings = append(orderStrings, orderString)
+	}
+
+	// Gabungkan semua orders menjadi satu string dengan new line sebagai separator
+	return strings.Join(orderStrings, "\n")
 }

@@ -81,6 +81,7 @@ type Userdomyikado struct {
 	JumlahAntrian        int                `json:"jumlahantrian,omitempty" bson:"jumlahantrian,omitempty"`
 	Password             string             `json:"password,omitempty" bson:"password,omitempty"`
 	Role                 string             `json:"role,omitempty" bson:"role,omitempty"`
+	Address              []Address          `json:"address,omitempty" bson:"address,omitempty"`
 }
 
 type Task struct {
