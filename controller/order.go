@@ -87,6 +87,7 @@ func GetDataOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateOrder(respw http.ResponseWriter, req *http.Request) {
+	// Decode token for authentication
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -101,6 +102,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Fetch user document
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -110,13 +112,25 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Parse order request
 	var orderRequest struct {
 		Menu          []string `json:"menu"`
 		Quantity      []int    `json:"quantity"`
 		Payment       string   `json:"payment"`
 		PaymentMethod string   `json:"paymentMethod"`
 	}
-	namaToko := req.URL.Query().Get("namatoko")
+
+	// Ambil slug toko dari parameter query
+	tokoSlug := req.URL.Query().Get("slug")
+	if tokoSlug == "" {
+		var respn model.Response
+		respn.Status = "Error: Slug toko tidak ditemukan"
+		respn.Response = "Slug harus disertakan dalam permintaan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Decode JSON body
 	if err := json.NewDecoder(req.Body).Decode(&orderRequest); err != nil {
 		var respn model.Response
 		respn.Status = "Error: Bad Request"
@@ -125,6 +139,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Validate menu and quantity length
 	if len(orderRequest.Menu) != len(orderRequest.Quantity) {
 		var respn model.Response
 		respn.Status = "Error: Jumlah menu dan kuantitas tidak sesuai"
@@ -133,42 +148,63 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Ambil dokumen toko berdasarkan slug
+	filter := bson.M{"slug": tokoSlug}
+	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data toko tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Proses setiap item menu dalam pesanan
 	var totalAmount int
 	var orderedItems []model.Menu
 	for i, menuName := range orderRequest.Menu {
-		dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", primitive.M{"name": menuName})
-		if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Data menu tidak ditemukan: " + strings.Join(orderRequest.Menu, ", ")
-			respn.Response = err.Error()
-			at.WriteJSON(respw, http.StatusNotFound, respn)
-			return
-		}
+		found := false
 
-		// Apply discount if available
-		finalPrice := dataMenu.Price
-		if dataMenu.Diskon != nil {
-			if dataMenu.Diskon[0].JenisDiskon == "Persentase" {
-				discountValue := float64(dataMenu.Price) * float64(dataMenu.Diskon[0].NilaiDiskon) / 100
-				finalPrice = dataMenu.Price - int(discountValue)
-			} else {
-				finalPrice = dataMenu.Price - dataMenu.Diskon[0].NilaiDiskon
+		// Cari menu dalam daftar menu dari dokumen toko
+		for _, dataMenu := range docToko.Menu {
+			if dataMenu.Name == menuName {
+				// Hitung harga akhir dengan diskon jika ada
+				finalPrice := dataMenu.Price
+				if dataMenu.Diskon != nil && len(dataMenu.Diskon) > 0 {
+					if dataMenu.Diskon[0].JenisDiskon == "Persentase" {
+						discountValue := float64(dataMenu.Price) * float64(dataMenu.Diskon[0].NilaiDiskon) / 100
+						finalPrice = dataMenu.Price - int(discountValue)
+					} else {
+						finalPrice = dataMenu.Price - dataMenu.Diskon[0].NilaiDiskon
+					}
+				}
+
+				// Tambahkan ke totalAmount dengan quantity
+				quantity := orderRequest.Quantity[i]
+				totalAmount += finalPrice * quantity
+
+				// Tambahkan item menu yang ditemukan ke orderedItems
+				orderedItem := model.Menu{
+					Name:   dataMenu.Name,
+					Price:  finalPrice,
+					Image:  dataMenu.Image,
+					Rating: dataMenu.Rating,
+					Sold:   dataMenu.Sold,
+				}
+				orderedItems = append(orderedItems, orderedItem)
+
+				found = true
+				break
 			}
 		}
 
-		// Update total amount with the final price and quantity
-		quantity := orderRequest.Quantity[i]
-		totalAmount += finalPrice * quantity
-
-		// Append ordered item with calculated final price
-		orderedItem := model.Menu{
-			Name:   dataMenu.Name,
-			Price:  finalPrice,
-			Image:  dataMenu.Image,
-			Rating: dataMenu.Rating,
-			Sold:   dataMenu.Sold,
+		// Jika menu tidak ditemukan dalam dokumen toko, kirim respons error
+		if !found {
+			var respn model.Response
+			respn.Status = "Error: Data menu tidak ditemukan - " + menuName
+			at.WriteJSON(respw, http.StatusNotFound, respn)
+			return
 		}
-		orderedItems = append(orderedItems, orderedItem)
 	}
 
 	// Create order input with total amount and ordered items
@@ -180,6 +216,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		PaymentMethod: orderRequest.PaymentMethod,
 	}
 
+	// Insert order document
 	response, err := atdb.InsertOneDoc(config.Mongoconn, "order", orderInput)
 	if err != nil {
 		var respn model.Response
@@ -189,14 +226,17 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Message to WhatsApp
+	// Create order message for WhatsApp
 	message := fmt.Sprintf("*Pesanan Masuk %s*\nNama: %s\nNo HP: %s\nAlamat: %s\n%s\nTotal: Rp %d\nPembayaran: %s",
-		namaToko, docuser.Name, docuser.PhoneNumber, docuser.Address, createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
+		tokoSlug, docuser.Name, docuser.PhoneNumber, docuser.Address,
+		createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
 	newmsg := model.SendText{
 		To:       "6282184952582",
 		IsGroup:  false,
 		Messages: message,
 	}
+
+	// Send WhatsApp message
 	_, _, err = atapi.PostStructWithToken[model.Response]("token", config.WAAPIToken, newmsg, config.WAAPIMessage)
 	if err != nil {
 		var respn model.Response
