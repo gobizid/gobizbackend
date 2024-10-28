@@ -211,6 +211,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.CreateAlamat(w, r)
 	case method == "GET" && path == "/get/address/province":
 		controller.GetAllProvinces(w, r)
+	case method == "GET" && path == "/get/address/city":
+		controller.GetAllCities(w, r)
 
 		// Slug market
 	case method == "GET" && path == "/market/slug":
