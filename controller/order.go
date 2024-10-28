@@ -112,6 +112,21 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	filter1 := bson.M{
+		"user": bson.M{
+			"$elemMatch": bson.M{"phonenumber": docuser.PhoneNumber},
+		},
+	}
+
+	docAlamat, err := atdb.GetOneDoc[model.Address](config.Mongoconn, "address", filter1)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Alamat user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
 	// Parse order request
 	var orderRequest struct {
 		Menu          []string `json:"menu"`
@@ -228,10 +243,10 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 
 	// Create order message for WhatsApp
 	message := fmt.Sprintf("*Pesanan Masuk %s*\nNama: %s\nNo HP: %s\nAlamat: %s\n%s\nTotal: Rp %d\nPembayaran: %s",
-		tokoSlug, docuser.Name, docuser.PhoneNumber, docuser.Address,
+		tokoSlug, docuser.Name, docuser.PhoneNumber, docAlamat,
 		createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
 	newmsg := model.SendText{
-		To:       "6282184952582",
+		To:       docToko.User[0].PhoneNumber,
 		IsGroup:  false,
 		Messages: message,
 	}
