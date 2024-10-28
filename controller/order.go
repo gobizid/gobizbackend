@@ -87,7 +87,6 @@ func GetDataOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateOrder(respw http.ResponseWriter, req *http.Request) {
-	// Decode the token for authentication
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -140,7 +139,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", primitive.M{"name": menuName})
 		if err != nil {
 			var respn model.Response
-			respn.Status = "Error: Data menu tidak ditemukan"
+			respn.Status = "Error: Data menu tidak ditemukan" + menuName
 			respn.Response = err.Error()
 			at.WriteJSON(respw, http.StatusNotFound, respn)
 			return
