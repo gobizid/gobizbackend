@@ -139,7 +139,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", primitive.M{"name": menuName})
 		if err != nil {
 			var respn model.Response
-			respn.Status = "Error: Data menu tidak ditemukan" + menuName
+			respn.Status = "Error: Data menu tidak ditemukan: " + strings.Join(orderRequest.Menu, ", ")
 			respn.Response = err.Error()
 			at.WriteJSON(respw, http.StatusNotFound, respn)
 			return
