@@ -166,7 +166,7 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 
 	var existingCategory model.Category
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingCategory)
+	err = config.Mongoconn.Collection("category").FindOne(context.TODO(), filter).Decode(&existingCategory)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Category tidak ditemukan"
