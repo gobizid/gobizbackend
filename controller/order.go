@@ -246,7 +246,7 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		tokoSlug, docuser.Name, docuser.PhoneNumber, docAlamat,
 		createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
 	newmsg := model.SendText{
-		To:       docToko.User[0].PhoneNumber,
+		To:       "62895331942686",
 		IsGroup:  false,
 		Messages: message,
 	}
