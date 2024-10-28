@@ -243,10 +243,10 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 
 	// Create order message for WhatsApp
 	message := fmt.Sprintf("*Pesanan Masuk %s*\nNama: %s\nNo HP: %s\nAlamat: %s\n%s\nTotal: Rp %d\nPembayaran: %s",
-		tokoSlug, docuser.Name, docuser.PhoneNumber, docAlamat,
+		tokoSlug, docuser.Name, docuser.PhoneNumber, CreateAddressMessageDev([]model.Address{docAlamat}),
 		createOrderMessageDev(orderedItems, orderRequest.Quantity), totalAmount, orderRequest.PaymentMethod)
 	newmsg := model.SendText{
-		To:       "62895331942686",
+		To:       docToko.User[0].PhoneNumber,
 		IsGroup:  false,
 		Messages: message,
 	}
@@ -274,4 +274,15 @@ func createOrderMessageDev(orders []model.Menu, quantities []int) string {
 
 	// Gabungkan semua orders menjadi satu string dengan new line sebagai separator
 	return strings.Join(orderStrings, "\n")
+}
+
+func CreateAddressMessageDev(address []model.Address) string {
+	var addressStr []string
+
+	for i, addres := range address {
+		addressStr = append(addressStr, fmt.Sprintf("Alamat %d:\n%s\n%s, %s, %s, %s, %s", i+1, addres.Description, addres.Street, addres.Province, addres.PostalCode, addres.City))
+		addressStr = append(addressStr, "\n")
+
+	}
+	return strings.Join(addressStr, "\n")
 }
