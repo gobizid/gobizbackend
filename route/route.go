@@ -202,7 +202,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "PUT" && path == "/update/category":
 		controller.UpdateCategory(w, r)
 	case method == "DELETE" && path == "/delete/category":
-		controller.UpdateCategory(w, r)
+		controller.DeleteCategory(w, r)
 
 		// address market and users
 	case method == "GET" && path == "/market/address":
