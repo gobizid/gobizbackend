@@ -176,7 +176,7 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 
 	namaCategory := req.FormValue("name_category")
 
-	updateData := bson.M{}
+	updateData := bson.M{"name_category": namaCategory}
 	if namaCategory != "" {
 		updateData["name_category"] = namaCategory
 	}
@@ -191,7 +191,6 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "category berhasil diupdate",
@@ -238,9 +237,9 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Coba ambil data Category dari database berdasarkan ID
-	var existingCategory model.Category
+	var dataMenuCategory model.Toko
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("category").FindOne(context.TODO(), filter).Decode(&existingCategory)
+	dataDelete, err := atdb.DeleteOneDoc(config.Mongoconn, "category", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Category tidak ditemukan"
@@ -248,8 +247,13 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Coba hapus data Category dari database berdasarkan ID
-	result, err := config.Mongoconn.Collection("menu").DeleteOne(context.TODO(), filter)
+	update := bson.M{
+		"$set": bson.M{
+			"category": dataMenuCategory.Category,
+		},
+	}
+
+	result, err := atdb.DeleteOneDoc(config.Mongoconn, "menu", update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal menghapus Category"
@@ -257,7 +261,6 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Jika tidak ada dokumen yang dihapus, berarti toko tidak ditemukan
 	if result.DeletedCount == 0 {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -265,11 +268,11 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dihapus",
 		"user":    payload.Alias,
+		"data":    dataDelete,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
