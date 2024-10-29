@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -532,8 +533,17 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var existingUser model.Toko
+	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingMenu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
 	// Cek apakah user yang melakukan update adalah pemilik toko
-	if existingMenu.User[0].PhoneNumber != payload.Id {
+	if existingUser.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
 		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate toko ini"
 		at.WriteJSON(respw, http.StatusForbidden, respn)
