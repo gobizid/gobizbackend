@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gocroot/config"
 	"github.com/gocroot/helper/at"
@@ -262,6 +263,7 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 			var finalPrice interface{} = nil
 			var totalDiscount interface{} = 0
 
+			// Calculate discount and final price
 			if len(menu.Diskon) > 0 && menu.Diskon[0].JenisDiskon == "Persentase" {
 				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
 				finalPrice = menu.Price - int(discountValue)
@@ -271,13 +273,18 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 				totalDiscount = 0
 			}
 
+			// Manipulate image URL from GitHub
+			imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
+			imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
+
+			// Append menu data
 			allMenus = append(allMenus, map[string]interface{}{
 				"name":           menu.Name,
 				"final_price":    finalPrice,
 				"total_discount": totalDiscount,
 				"rating":         menu.Rating,
 				"sold":           menu.Sold,
-				"image":          menu.Image,
+				"image":          imageURL,
 			})
 		}
 	}
@@ -646,4 +653,91 @@ func UpdateMenuToRemoveDiskonByName(respw http.ResponseWriter, req *http.Request
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func GetAllMenuAdmin(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	tokoID := req.URL.Query().Get("id")
+	if tokoID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(tokoID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Toko tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Filter untuk mencari toko berdasarkan ID
+	filter := bson.M{"_id": objectID}
+	var result struct {
+		Menu []struct {
+			Name   string  `bson:"name"`
+			Price  float64 `bson:"price"`
+			Diskon []struct {
+				JenisDiskon  string    `bson:"jenis_diskon"`
+				NilaiDiskon  float64   `bson:"nilai_diskon"`
+				TanggalMulai time.Time `bson:"tanggal_mulai"`
+				TanggalAkhir time.Time `bson:"tanggal_berakhir"`
+				Status       string    `bson:"status"`
+			} `bson:"diskon"`
+			Rating float64 `bson:"rating"`
+			Sold   int     `bson:"sold"`
+			Image  string  `bson:"image"`
+		} `bson:"menu"`
+	}
+
+	// Query ke MongoDB dan decode hasil ke dalam struct result
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan atau menu kosong"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Buat response khusus hanya untuk nama menu dan nilai diskon
+	var menusWithDiscount []map[string]interface{}
+	for _, menu := range result.Menu {
+		diskonNominal := float64(0) // Default jika tidak ada diskon
+		if len(menu.Diskon) > 0 {
+			diskonNominal = menu.Diskon[0].NilaiDiskon // Ambil diskon pertama
+		}
+
+		menusWithDiscount = append(menusWithDiscount, map[string]interface{}{
+			"name":     menu.Name,
+			"price":    menu.Price,
+			"discount": diskonNominal,
+			"rating":   menu.Rating,
+			"sold":     menu.Sold,
+			"image":    menu.Image,
+		})
+	}
+
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu ditemukan",
+		"nama":    payload.Alias,
+		"data":    menusWithDiscount,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+
 }
