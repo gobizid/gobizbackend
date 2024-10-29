@@ -504,16 +504,16 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Ambil ID menu dari query parameter
-	slugToko := req.URL.Query().Get("slug")
-	if slugToko == "" {
+	menuID := req.URL.Query().Get("id")
+	if menuID == "" {
 		var respn model.Response
 		respn.Status = "Error: ID Menu tidak ditemukan"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
-	// Konversi slugToko ke ObjectID
-	objectID, err := primitive.ObjectIDFromHex(slugToko)
+	// Konversi menuID ke ObjectID
+	objectID, err := primitive.ObjectIDFromHex(menuID)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: ID Menu tidak valid"
@@ -532,10 +532,10 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Verifikasi apakah pengguna memiliki hak akses ke menu ini
-	if existingMenu.OwnerID != payload.Id {
+	// Cek apakah user yang melakukan update adalah pemilik toko
+	if existingMenu.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
-		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate menu ini"
+		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate toko ini"
 		at.WriteJSON(respw, http.StatusForbidden, respn)
 		return
 	}
