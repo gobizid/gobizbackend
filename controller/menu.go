@@ -644,7 +644,6 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-
 func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 
@@ -709,8 +708,6 @@ func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
-
-
 
 // Belum fix
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
