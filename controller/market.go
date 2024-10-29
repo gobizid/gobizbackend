@@ -397,7 +397,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
-	// Ambil ID toko dari query parameter
 	tokoID := req.URL.Query().Get("id")
 	if tokoID == "" {
 		var respn model.Response
@@ -406,7 +405,6 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Konversi tokoID dari string ke ObjectID MongoDB
 	objectID, err := primitive.ObjectIDFromHex(tokoID)
 	if err != nil {
 		var respn model.Response
@@ -415,10 +413,8 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Coba ambil data toko dari database berdasarkan ID
-	var toko model.Toko
 	filter := bson.M{"_id": objectID}
-	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	dataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -426,11 +422,19 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim data toko yang ditemukan
+	data := model.Toko{
+		ID:         dataToko.ID,
+		NamaToko:   dataToko.NamaToko,
+		Slug:       dataToko.Slug,
+		Category:   dataToko.Category,
+		Alamat:     dataToko.Alamat,
+		GambarToko: dataToko.GambarToko,
+	}
+
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko ditemukan",
-		"data":    toko,
+		"data":    data,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
