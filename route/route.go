@@ -202,13 +202,19 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "PUT" && path == "/update/category":
 		controller.UpdateCategory(w, r)
 	case method == "DELETE" && path == "/delete/category":
-		controller.UpdateCategory(w, r)
+		controller.DeleteCategory(w, r)
 
 		// address market and users
 	case method == "GET" && path == "/market/address":
 		controller.GetAllMarketAddress(w, r)
 	case method == "POST" && path == "/create/address":
 		controller.CreateAlamat(w, r)
+	case method == "GET" && path == "/get/address/province":
+		controller.GetAllProvinces(w, r)
+	case method == "GET" && path == "/get/address/city":
+		controller.GetAllCities(w, r)
+	case method == "GET" && path == "/get/address/postal-code":
+		controller.GetAllPostalCodes(w, r)
 
 		// Slug market
 	case method == "GET" && path == "/market/slug":
