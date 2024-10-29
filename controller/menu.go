@@ -645,6 +645,73 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 
+func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil ID menu dari query parameter
+	menuID := req.URL.Query().Get("menuID")
+	if menuID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi menuID dari string ke ObjectID
+	menuObjectID, err := primitive.ObjectIDFromHex(menuID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID menu tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Buat filter berdasarkan ID pengguna
+	filter := bson.M{
+		"user": bson.M{
+			"$elemMatch": bson.M{
+				"phonenumber": bson.M{"$regex": payload.Id},
+			},
+		},
+	}
+	update := bson.M{
+		"$pull": bson.M{
+			"menu": bson.M{"_id": menuObjectID},
+		},
+	}
+
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus data menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Kirim respons sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu berhasil dihapus",
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+
+
 // Belum fix
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	// Dekode token untuk validasi
