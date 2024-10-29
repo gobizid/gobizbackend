@@ -7,6 +7,7 @@ import (
 )
 
 type Menu struct {
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name   string   `json:"name" bson:"name"`
 	Price  int      `json:"price" bson:"price"`
 	Diskon []Diskon `json:"diskon" bson:"diskon"`

@@ -20,11 +20,10 @@ import (
 )
 
 func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
+	// Decode token untuk mendapatkan ID pengguna
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-
 		if err != nil {
 			var respn model.Response
 			respn.Status = "Error: Token Tidak Valid"
@@ -36,6 +35,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Parsing form data dengan batasan 10MB
 	err = req.ParseMultipartForm(10 << 20) // Batas 10MB
 	if err != nil {
 		var respn model.Response
@@ -45,11 +45,11 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Handle upload gambar menu (opsional)
 	var menuImageURL string
 	file, header, err := req.FormFile("menuImage")
 	if err == nil {
 		defer file.Close()
-
 		fileContent, err := io.ReadAll(file)
 		if err != nil {
 			var respn model.Response
@@ -58,8 +58,9 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Tambahkan ekstensi asli file
-
+		// Generate nama file dengan hashing
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
+		// Upload gambar ke GitHub
 		GitHubAccessToken := config.GHAccessToken
 		GitHubAuthorName := "Rolly Maulana Awangga"
 		GitHubAuthorEmail := "awangga@gmail.com"
@@ -80,6 +81,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		menuImageURL = *content.Content.HTMLURL
 	}
 
+	// Ambil data dari form
 	menuName := req.FormValue("name")
 	menuPrice := req.FormValue("price")
 	menuRating := req.FormValue("rating")
@@ -89,6 +91,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	rating, _ := strconv.ParseFloat(menuRating, 64)
 	sold, _ := strconv.Atoi(menuSold)
 
+	// Ambil data pengguna berdasarkan ID dari token
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -98,6 +101,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Buat filter untuk toko
 	filter := bson.M{
 		"user": bson.M{
 			"$elemMatch": bson.M{
@@ -106,6 +110,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		},
 	}
 
+	// Ambil data toko
 	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
@@ -115,18 +120,24 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Create the menu with an empty Diskon (null equivalent)
+	// Buat ID baru untuk menu
+	menuID := primitive.NewObjectID()
+
+	// Membuat menu baru dengan ID
 	newMenu := model.Menu{
+		ID:     menuID,  // Set ID unik untuk menu
 		Name:   menuName,
 		Price:  price,
-		Diskon: nil, // Setting Diskon to nil (null equivalent in Go)
+		Diskon: nil,  // Diskon diset ke nil sebagai default
 		Rating: rating,
 		Sold:   sold,
 		Image:  menuImageURL,
 	}
 
+	// Tambahkan menu baru ke existingToko.Menu
 	existingToko.Menu = append(existingToko.Menu, newMenu)
 
+	// Update data toko di MongoDB
 	update := bson.M{
 		"$set": bson.M{
 			"menu": existingToko.Menu,
@@ -141,17 +152,18 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Kirim respons sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil ditambahkan ke toko",
 		"data": map[string]interface{}{
-			"id":        existingToko.ID.Hex(),
-			"nama_toko": existingToko.NamaToko,
-			"slug":      existingToko.Slug,
-			"category":  existingToko.Category,
-			"alamat":    existingToko.Alamat,
-			"user":      docuser,
-			"menu":      existingToko.Menu,
+			"menu_id":    menuID.Hex(),  // Mengembalikan ID menu yang baru dibuat
+			"nama_toko":  existingToko.NamaToko,
+			"slug":       existingToko.Slug,
+			"category":   existingToko.Category,
+			"alamat":     existingToko.Alamat,
+			"user":       docuser,
+			"menu":       existingToko.Menu,
 		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
@@ -492,16 +504,16 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Ambil ID menu dari query parameter
-	menuID := req.URL.Query().Get("id")
-	if menuID == "" {
+	slugToko := req.URL.Query().Get("slug")
+	if slugToko == "" {
 		var respn model.Response
 		respn.Status = "Error: ID Menu tidak ditemukan"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
-	// Konversi menuID ke ObjectID
-	objectID, err := primitive.ObjectIDFromHex(menuID)
+	// Konversi slugToko ke ObjectID
+	objectID, err := primitive.ObjectIDFromHex(slugToko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: ID Menu tidak valid"
