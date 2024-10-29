@@ -475,6 +475,154 @@ func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, responseData)
 }
 
+func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil ID menu dari query parameter
+	menuID := req.URL.Query().Get("id")
+	if menuID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi menuID ke ObjectID
+	objectID, err := primitive.ObjectIDFromHex(menuID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Ambil data menu dari database
+	var existingMenu model.Menu
+	filter := bson.M{"_id": objectID}
+	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingMenu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Verifikasi apakah pengguna memiliki hak akses ke menu ini
+	if existingMenu.OwnerID != payload.Id {
+		var respn model.Response
+		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate menu ini"
+		at.WriteJSON(respw, http.StatusForbidden, respn)
+		return
+	}
+
+	// Parsing form data
+	err = req.ParseMultipartForm(10 << 20)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal memproses form data"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Handle file upload gambar menu
+	var menuImageURL string
+	file, header, err := req.FormFile("menuImage")
+	if err == nil {
+		defer file.Close()
+
+		fileContent, err := io.ReadAll(file)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal membaca file"
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+
+		// Upload gambar ke GitHub
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
+		GitHubAccessToken := config.GHAccessToken
+		GitHubAuthorName := "Rolly Maulana Awangga"
+		GitHubAuthorEmail := "awangga@gmail.com"
+		githubOrg := "gobizid"
+		githubRepo := "img"
+		pathFile := "menuImages/" + hashedFileName
+		replace := true
+
+		content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal mengupload gambar ke GitHub"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+
+		menuImageURL = *content.Content.HTMLURL
+	}
+
+	// Ambil data dari form
+	menuName := req.FormValue("name")
+	menuPrice := req.FormValue("price")
+	menuRating := req.FormValue("rating")
+	menuSold := req.FormValue("sold")
+
+	price, _ := strconv.Atoi(menuPrice)
+	rating, _ := strconv.ParseFloat(menuRating, 64)
+	sold, _ := strconv.Atoi(menuSold)
+
+	// Buat data update untuk di MongoDB
+	updateData := bson.M{}
+	if menuName != "" {
+		updateData["name"] = menuName
+	}
+	if menuPrice != "" {
+		updateData["price"] = price
+	}
+	if menuRating != "" {
+		updateData["rating"] = rating
+	}
+	if menuSold != "" {
+		updateData["sold"] = sold
+	}
+	if menuImageURL != "" {
+		updateData["image"] = menuImageURL
+	}
+
+	// Lakukan update di MongoDB
+	update := bson.M{"$set": updateData}
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengupdate menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotModified, respn)
+		return
+	}
+
+	// Kirim response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu berhasil diupdate",
+		"data":    updateData,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+
 // Belum fix
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	// Dekode token untuk validasi

@@ -165,6 +165,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteTokoByID(w, r)
 	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
+	case method == "PUT" && path == "/update/menu":
+		controller.UpdateDataMenu(w, r)
 	case method == "GET" && path == "/page/toko":
 		controller.GetPageMenuByToko(w, r)
 	case method == "GET" && path == "/menu":
