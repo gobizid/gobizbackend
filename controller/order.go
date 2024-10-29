@@ -261,7 +261,11 @@ func CreateOrder(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	at.WriteJSON(respw, http.StatusOK, response)
+	var respn model.Response
+	respn.Status = "Success"
+	respn.Response = "Pesanan berhasil dibuat dan pesan WhatsApp terkirim"
+	respn.Info = response.Hex()
+	at.WriteJSON(respw, http.StatusOK, respn)
 }
 
 func createOrderMessageDev(orders []model.Menu, quantities []int) string {

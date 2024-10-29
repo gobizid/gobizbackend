@@ -418,7 +418,7 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 	// Coba ambil data toko dari database berdasarkan ID
 	var toko model.Toko
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&toko)
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -595,7 +595,6 @@ func GetAllSlug(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
-	// Mengambil semua data toko dari collection 'menu'
 	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
