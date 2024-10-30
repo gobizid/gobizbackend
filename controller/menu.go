@@ -37,7 +37,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Parsing form data dengan batasan 10MB
-	err = req.ParseMultipartForm(10 << 20) // Batas 10MB
+	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal memproses form data"
@@ -92,31 +92,16 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	rating, _ := strconv.ParseFloat(menuRating, 64)
 	sold, _ := strconv.Atoi(menuSold)
 
-	// Ambil data pengguna berdasarkan ID dari token
-	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Data user tidak ditemukan"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotImplemented, respn)
-		return
-	}
-
-	// Buat filter untuk toko
+	// Ambil data toko berdasarkan ID pengguna dari token
 	filter := bson.M{
-		"user": bson.M{
-			"$elemMatch": bson.M{
-				"phonenumber": bson.M{"$regex": payload.Id},
-			},
-		},
+		"user.phonenumber": payload.Id,
 	}
 
-	// Ambil data toko
-	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	existingToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
-		respn.Response = "payload.Id:" + payload.Id + "|" + err.Error() + "|" + "data docuser: " + docuser.PhoneNumber + fmt.Sprintf("%v", filter)
+		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
@@ -124,30 +109,23 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 	// Buat ID baru untuk menu
 	menuID := primitive.NewObjectID()
 
-	// Membuat menu baru dengan ID
+	// Membuat menu baru dengan referensi ke objek Toko
 	newMenu := model.Menu{
-		ID:     menuID,  // Set ID unik untuk menu
+		ID:     menuID,
+		TokoID: existingToko, // Menyimpan objek Toko di sini
 		Name:   menuName,
 		Price:  price,
-		Diskon: nil,  // Diskon diset ke nil sebagai default
+		Diskon: nil,
 		Rating: rating,
 		Sold:   sold,
 		Image:  menuImageURL,
 	}
 
-	// Tambahkan menu baru ke existingToko.Menu
-	existingToko.Menu = append(existingToko.Menu, newMenu)
-
-	// Update data toko di MongoDB
-	update := bson.M{
-		"$set": bson.M{
-			"menu": existingToko.Menu,
-		},
-	}
-	_, err = config.Mongoconn.Collection("menu").UpdateOne(req.Context(), filter, update)
+	// Masukkan data menu ke dalam collection menu di MongoDB
+	_, err = atdb.InsertOneDoc(config.Mongoconn, "menu", newMenu)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Gagal mengupdate data menu"
+		respn.Status = "Error: Gagal memasukkan data menu ke database"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
@@ -158,17 +136,20 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		"status":  "success",
 		"message": "Menu berhasil ditambahkan ke toko",
 		"data": map[string]interface{}{
-			"menu_id":    menuID.Hex(),  // Mengembalikan ID menu yang baru dibuat
-			"nama_toko":  existingToko.NamaToko,
-			"slug":       existingToko.Slug,
-			"category":   existingToko.Category,
-			"alamat":     existingToko.Alamat,
-			"user":       docuser,
-			"menu":       existingToko.Menu,
+			"menu_id": menuID.Hex(),
+			"name":    newMenu.Name,
+			"price":   newMenu.Price,
+			"rating":  newMenu.Rating,
+			"toko": map[string]interface{}{
+				"id":   existingToko.ID.Hex(),
+				"name": existingToko.NamaToko,
+				"slug": existingToko.Slug,
+			},
 		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
