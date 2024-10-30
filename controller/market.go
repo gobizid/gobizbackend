@@ -193,7 +193,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
-	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "toko", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data market tidak ditemukan"
@@ -271,7 +271,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	// Coba ambil data toko dari database berdasarkan ID
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingToko)
+	err = config.Mongoconn.Collection("toko").FindOne(context.TODO(), filter).Decode(&existingToko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -377,7 +377,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 
 	// Lakukan update di MongoDB
 	update := bson.M{"$set": updateData}
-	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
+	_, err = config.Mongoconn.Collection("toko").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate toko"
@@ -413,7 +413,7 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	filter := bson.M{"_id": objectID}
-	dataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
+	dataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -477,7 +477,7 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	// Coba ambil data toko dari database berdasarkan ID
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("menu").FindOne(context.TODO(), filter).Decode(&existingToko)
+	err = config.Mongoconn.Collection("toko").FindOne(context.TODO(), filter).Decode(&existingToko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -494,7 +494,7 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Coba hapus data toko dari database berdasarkan ID
-	result, err := config.Mongoconn.Collection("menu").DeleteOne(context.TODO(), filter)
+	result, err := config.Mongoconn.Collection("toko").DeleteOne(context.TODO(), filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal menghapus toko"
@@ -520,7 +520,7 @@ func DeleteTokoByID(respw http.ResponseWriter, req *http.Request) {
 
 func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil semua data toko dari collection 'toko' yang berisi informasi alamat dan user
-	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "toko", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data toko tidak ditemukan"
@@ -563,7 +563,7 @@ func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
 
 func GetAllSlug(respw http.ResponseWriter, req *http.Request) {
 	// Mengambil semua data toko dari collection 'menu'
-	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "toko", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data market tidak ditemukan"
@@ -598,7 +598,7 @@ func GetAllSlug(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
-	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "menu", primitive.M{})
+	tokos, err := atdb.GetAllDoc[[]model.Toko](config.Mongoconn, "toko", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data market tidak ditemukan"
