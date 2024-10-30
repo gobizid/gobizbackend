@@ -175,14 +175,34 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cari toko berdasarkan slug
+	// Cari toko berdasarkan slug di koleksi toko
 	var toko model.Toko
-	err = config.Mongoconn.Collection("menu").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
+	err = config.Mongoconn.Collection("toko").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
 		respn.Response = "Slug: " + slug + ", Error: " + err.Error()
 		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Ambil semua menu yang terkait dengan ID toko dari koleksi menu
+	var menus []model.Menu
+	cursor, err := config.Mongoconn.Collection("menu").Find(req.Context(), bson.M{"toko": toko.ID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengambil data menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+	defer cursor.Close(req.Context())
+
+	if err = cursor.All(req.Context(), &menus); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal memproses data menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
 
@@ -195,10 +215,11 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		"category":  toko.Category,
 		"alamat":    toko.Alamat,
 		"owner":     toko.User,
-		"data":      toko.Menu,
+		"data":      menus, // Menampilkan daftar menu yang diambil
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
 
 func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
