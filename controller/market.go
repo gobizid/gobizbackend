@@ -107,7 +107,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"user.phonenumber": payload.Id})
+	docTokoUser, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"user.phonenumber": payload.Id})
 	if err == nil && docTokoUser.ID != primitive.NilObjectID {
 		var respn model.Response
 		respn.Status = "Error: User sudah memiliki toko"
@@ -115,7 +115,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"nama_toko": namaToko})
+	docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"nama_toko": namaToko})
 	if err == nil && docTokoNama.ID != primitive.NilObjectID {
 		var respn model.Response
 		respn.Status = "Error: Nama Toko sudah digunakan"
@@ -123,7 +123,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", primitive.M{"slug": slug})
+	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"slug": slug})
 	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
 		var respn model.Response
 		respn.Status = "Error: Slug Toko sudah digunakan"
@@ -158,7 +158,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		User: []model.Userdomyikado{docuser},
 	}
 
-	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "menu", tokoInput)
+	dataToko, err := atdb.InsertOneDoc(config.Mongoconn, "toko", tokoInput)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Gagal Insert Database"
@@ -186,7 +186,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			},
 			"gambar_toko": gambarTokoURL,
 			"user":        tokoInput.User,
-			"menu":        tokoInput.Menu,
 		},
 	}
 
