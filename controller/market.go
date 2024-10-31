@@ -243,7 +243,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-
 		if err != nil {
 			var respn model.Response
 			respn.Status = "Error: Token Tidak Valid"
@@ -264,7 +263,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Coba konversi tokoID dari string ke ObjectID MongoDB
+	// Konversi tokoID dari string ke ObjectID MongoDB
 	objectID, err := primitive.ObjectIDFromHex(tokoID)
 	if err != nil {
 		var respn model.Response
@@ -273,7 +272,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Coba ambil data toko dari database berdasarkan ID
+	// Ambil data toko dari database
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
 	err = config.Mongoconn.Collection("toko").FindOne(context.TODO(), filter).Decode(&existingToko)
@@ -284,15 +283,15 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user yang melakukan update adalah pemilik toko
+	// Cek apakah user adalah pemilik toko
 	if existingToko.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
-		respn.Status = "Error: User tidak memiliki hak akses untuk mengupdate toko ini"
+		respn.Status = "Error: User tidak memiliki hak akses"
 		at.WriteJSON(respw, http.StatusForbidden, respn)
 		return
 	}
 
-	// Parsing form data (dengan batasan 10MB)
+	// Parsing form data
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -302,12 +301,11 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Handle file upload untuk gambar toko (opsional)
+	// Validasi gambar toko (opsional)
 	var gambarTokoURL string
 	file, header, err := req.FormFile("tokoImage")
 	if err == nil {
 		defer file.Close()
-
 		fileContent, err := io.ReadAll(file)
 		if err != nil {
 			var respn model.Response
@@ -315,20 +313,9 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 			at.WriteJSON(respw, http.StatusInternalServerError, respn)
 			return
 		}
-
-		// Generate nama file yang aman dengan hashing
 		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
-
 		// Upload gambar ke GitHub
-		GitHubAccessToken := config.GHAccessToken
-		GitHubAuthorName := "Rolly Maulana Awangga"
-		GitHubAuthorEmail := "awangga@gmail.com"
-		githubOrg := "gobizid"
-		githubRepo := "img"
-		pathFile := "tokoImages/" + hashedFileName
-		replace := true
-
-		content, _, err := ghupload.GithubUpload(GitHubAccessToken, GitHubAuthorName, GitHubAuthorEmail, fileContent, githubOrg, githubRepo, pathFile, replace)
+		content, _, err := ghupload.GithubUpload(config.GHAccessToken, "Rolly Maulana Awangga", "awangga@gmail.com", fileContent, "gobizid", "img", "tokoImages/"+hashedFileName, true)
 		if err != nil {
 			var respn model.Response
 			respn.Status = "Error: Gagal mengupload gambar ke GitHub"
@@ -336,10 +323,10 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 			at.WriteJSON(respw, http.StatusInternalServerError, respn)
 			return
 		}
-
 		gambarTokoURL = *content.Content.HTMLURL
 	}
 
+	// Validasi dan Ambil Data dari Form
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
 	category := req.FormValue("category")
@@ -349,6 +336,45 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
+	// Validasi slug tidak mengandung spasi
+	if strings.Contains(slug, " ") {
+		var respn model.Response
+		respn.Status = "Error: Slug tidak boleh mengandung spasi. Gunakan format 'nama-toko'."
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Validasi kategori jika ada
+	if category != "" {
+		objectCategoryID, err := primitive.ObjectIDFromHex(category)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: ID Kategori tidak valid"
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
+		}
+		categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
+		if err != nil || categoryDoc.ID == primitive.NilObjectID {
+			var respn model.Response
+			respn.Status = "Error: Kategori tidak ditemukan"
+			respn.Response = "ID yang dicari: " + category
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
+		}
+	}
+
+	// Validasi nama toko unik
+	if namaToko != "" && namaToko != existingToko.NamaToko {
+		docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"nama_toko": namaToko})
+		if err == nil && docTokoNama.ID != primitive.NilObjectID {
+			var respn model.Response
+			respn.Status = "Error: Nama Toko sudah digunakan"
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
+		}
+	}
+
+	// Update Data
 	updateData := bson.M{}
 	if namaToko != "" {
 		updateData["nama_toko"] = namaToko
