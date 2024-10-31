@@ -265,6 +265,9 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	var menus []map[string]interface{}
 
 	for _, menu := range data {
+		imageUrl := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
+		imageUrls := strings.Replace(imageUrl, "/blob/", "/", 1)
+
 		menus = append(menus, map[string]interface{}{
 			"toko":   menu.TokoID.NamaToko,
 			"menu":   menu.Name,
@@ -272,7 +275,7 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 			"diskon": menu.Diskon,
 			"rating": menu.Rating,
 			"sold":   menu.Sold,
-			"image":  strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1),
+			"image":  imageUrls,
 		})
 	}
 
