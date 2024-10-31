@@ -252,10 +252,8 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	// Initialize an empty slice to hold all menu data
 	var menus []model.Menu
-	// Fetch all documents from the `menu` collection
-	_, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
+	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data menu tidak ditemukan"
