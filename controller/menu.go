@@ -252,8 +252,7 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	var menus []model.Menu
-	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
+	dataMenu, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data menu tidak ditemukan"
@@ -262,44 +261,70 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var allMenus []map[string]interface{}
-
-	// Iterate over each menu item to calculate final price and total discount
-	for _, menu := range menus {
-		finalPrice := menu.Price
-		totalDiscount := 0
-
-		// Check if the menu has a discount and calculate accordingly
-		if menu.Diskon != nil && len(menu.Diskon) > 0 {
-			if menu.Diskon[0].JenisDiskon == "Persentase" {
-				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
-				finalPrice = menu.Price - int(discountValue)
-				totalDiscount = int(discountValue)
-			} else if menu.Diskon[0].JenisDiskon == "Tetap" {
-				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
-				totalDiscount = menu.Diskon[0].NilaiDiskon
-			}
-		}
-
-		// Manipulate the image URL from GitHub
-		imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
-		imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
-
-		// Append the processed menu data to the result slice
-		allMenus = append(allMenus, map[string]interface{}{
-			"toko_name":      menu.TokoID.NamaToko,
-			"menu_name":      menu.Name,
-			"final_price":    finalPrice,
-			"total_discount": totalDiscount,
-			"rating":         menu.Rating,
-			"sold":           menu.Sold,
-			"image":          imageURL,
-		})
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Data menu berhasil diambil",
+		"toko":    dataMenu.TokoID.NamaToko,
+		"menu":    dataMenu.Name,
+		"price":   dataMenu.Price,
+		"diskon":  dataMenu.Diskon,
+		"rating":  dataMenu.Rating,
+		"sold":    dataMenu.Sold,
+		"image":   dataMenu.Image,
 	}
 
-	// Send the final result as a JSON response
-	at.WriteJSON(respw, http.StatusOK, allMenus)
+	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+// func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
+// 	var menus []model.Menu
+// 	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
+// 	if err != nil {
+// 		var respn model.Response
+// 		respn.Status = "Error: Data menu tidak ditemukan"
+// 		respn.Response = err.Error()
+// 		at.WriteJSON(respw, http.StatusNotFound, respn)
+// 		return
+// 	}
+
+// 	var allMenus []map[string]interface{}
+
+// 	// Iterate over each menu item to calculate final price and total discount
+// 	for _, menu := range menus {
+// 		finalPrice := menu.Price
+// 		totalDiscount := 0
+
+// 		// Check if the menu has a discount and calculate accordingly
+// 		if menu.Diskon != nil && len(menu.Diskon) > 0 {
+// 			if menu.Diskon[0].JenisDiskon == "Persentase" {
+// 				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
+// 				finalPrice = menu.Price - int(discountValue)
+// 				totalDiscount = int(discountValue)
+// 			} else if menu.Diskon[0].JenisDiskon == "Tetap" {
+// 				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
+// 				totalDiscount = menu.Diskon[0].NilaiDiskon
+// 			}
+// 		}
+
+// 		// Manipulate the image URL from GitHub
+// 		imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
+// 		imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
+
+// 		// Append the processed menu data to the result slice
+// 		allMenus = append(allMenus, map[string]interface{}{
+// 			"toko_name":      menu.TokoID.NamaToko,
+// 			"menu_name":      menu.Name,
+// 			"final_price":    finalPrice,
+// 			"total_discount": totalDiscount,
+// 			"rating":         menu.Rating,
+// 			"sold":           menu.Sold,
+// 			"image":          imageURL,
+// 		})
+// 	}
+
+// 	// Send the final result as a JSON response
+// 	at.WriteJSON(respw, http.StatusOK, allMenus)
+// }
 
 func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
