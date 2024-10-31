@@ -25,7 +25,7 @@ type Toko struct {
 	GambarToko string             `bson:"gambar_toko" json:"gambar_toko"`
 	Alamat     Address            `bson:"alamat" json:"alamat"`
 	User       []Userdomyikado    `bson:"user" json:"user"`
-	Menu       []Menu             `bson:"menu" json:"menu"`
+	// Menu       []Menu             `bson:"menu" json:"menu"`
 }
 
 type Address struct {

@@ -335,7 +335,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		gambarTokoURL = *content.Content.HTMLURL
 	}
 
-	// Ambil data dari form yang akan di-update
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
 	category := req.FormValue("category")
@@ -345,7 +344,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
-	// Buat data update untuk di MongoDB
 	updateData := bson.M{}
 	if namaToko != "" {
 		updateData["nama_toko"] = namaToko
@@ -375,7 +373,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		updateData["gambar_toko"] = gambarTokoURL
 	}
 
-	// Lakukan update di MongoDB
 	update := bson.M{"$set": updateData}
 	_, err = config.Mongoconn.Collection("toko").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
