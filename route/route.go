@@ -213,6 +213,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// address market and users
 	case method == "GET" && path == "/market/address":
 		controller.GetAllMarketAddress(w, r)
+	case method == "GET" && path == "/address-id":
+		controller.GetAlamatByID(w, r)
 	case method == "POST" && path == "/create/address":
 		controller.CreateAlamat(w, r)
 	case method == "PUT" && path == "/update/address":
