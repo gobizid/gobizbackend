@@ -252,8 +252,8 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	var dataMenu []model.Menu
-	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
+	// var dataMenu []model.Menu
+	data, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data menu tidak ditemukan"
@@ -264,7 +264,7 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 
 	var menus []map[string]interface{}
 
-	for _, menu := range dataMenu {
+	for _, menu := range data {
 		menus = append(menus, map[string]interface{}{
 			"toko":   menu.TokoID.NamaToko,
 			"menu":   menu.Name,
