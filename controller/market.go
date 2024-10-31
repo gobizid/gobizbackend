@@ -123,6 +123,19 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Validasi format slug, jika mengandung spasi maka ubah spasi menjadi "-"
+	if strings.Contains(slug, " ") {
+		slug = strings.ReplaceAll(slug, " ", "-")
+	}
+
+	// Atau, jika ingin mengembalikan error jika format tidak sesuai
+	if strings.Contains(slug, " ") {
+		var respn model.Response
+		respn.Status = "Error: Slug Toko tidak boleh mengandung spasi, gunakan format 'nama-toko'"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
 	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"slug": slug})
 	if err == nil && docTokoSlug.ID != primitive.NilObjectID {
 		var respn model.Response
