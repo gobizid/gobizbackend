@@ -168,6 +168,68 @@ func UpdateAlamat(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
+func DeleteAlamat(respw http.ResponseWriter, req *http.Request) {
+	// Ambil dan decode token dari header
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil ID alamat dari query parameter
+	addressID := req.URL.Query().Get("id")
+	if addressID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Alamat tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Coba konversi addressID ke ObjectID MongoDB
+	objectID, err := primitive.ObjectIDFromHex(addressID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Alamat tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Ambil data user berdasarkan nomor telepon di payload token
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	// Cek apakah alamat yang akan dihapus milik user yang sedang login
+	filter := bson.M{"_id": objectID, "user.phonenumber": docuser.PhoneNumber}
+	result, err := config.Mongoconn.Collection("address").DeleteOne(context.TODO(), filter)
+	if err != nil || result.DeletedCount == 0 {
+		var respn model.Response
+		respn.Status = "Error: Alamat tidak ditemukan atau Anda tidak memiliki hak akses"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Kirim response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Alamat berhasil dihapus",
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
 func GetAllCities(respw http.ResponseWriter, req *http.Request) {
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
