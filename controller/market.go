@@ -577,9 +577,7 @@ func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
 				"description": address.Description,
 				"postal_code": address.PostalCode,
 				"user": map[string]interface{}{
-					"nama":    user.Name,  // Asumsikan ada field Nama di model Userdomyikado
-					"email":   user.Email, // Asumsikan ada field Email di model Userdomyikado
-					"user_id": user.ID,    // Asumsikan ada field ID di model Userdomyikado
+					"nama":    user.Name,
 				},
 			})
 		}
