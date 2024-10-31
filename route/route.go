@@ -217,6 +217,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.CreateAlamat(w, r)
 	case method == "PUT" && path == "/update/address":
 		controller.UpdateAlamat(w, r)
+	case method == "DELETE" && path == "/delete/address":
+		controller.DeleteAlamat(w, r)
 	case method == "GET" && path == "/get/address/province":
 		controller.GetAllProvinces(w, r)
 	case method == "GET" && path == "/get/address/city":
