@@ -252,8 +252,10 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	// Ambil semua data dari koleksi `menu`
-	menus, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
+	// Initialize an empty slice to hold all menu data
+	var menus []model.Menu
+	// Fetch all documents from the `menu` collection
+	_, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data menu tidak ditemukan"
@@ -261,37 +263,43 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
+
 	var allMenus []map[string]interface{}
 
-	// Hitung harga final dan total diskon
-	var finalPrice interface{} = menus.Price
-	var totalDiscount interface{} = 0
+	// Iterate over each menu item to calculate final price and total discount
+	for _, menu := range menus {
+		finalPrice := menu.Price
+		totalDiscount := 0
 
-	if len(menus.Diskon) > 0 && menus.Diskon[0].JenisDiskon == "Persentase" {
-		discountValue := float64(menus.Price) * float64(menus.Diskon[0].NilaiDiskon) / 100
-		finalPrice = menus.Price - int(discountValue)
-		totalDiscount = int(discountValue)
-	} else if len(menus.Diskon) > 0 && menus.Diskon[0].JenisDiskon == "Tetap" {
-		finalPrice = menus.Price - menus.Diskon[0].NilaiDiskon
-		totalDiscount = menus.Diskon[0].NilaiDiskon
+		// Check if the menu has a discount and calculate accordingly
+		if menu.Diskon != nil && len(menu.Diskon) > 0 {
+			if menu.Diskon[0].JenisDiskon == "Persentase" {
+				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
+				finalPrice = menu.Price - int(discountValue)
+				totalDiscount = int(discountValue)
+			} else if menu.Diskon[0].JenisDiskon == "Tetap" {
+				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
+				totalDiscount = menu.Diskon[0].NilaiDiskon
+			}
+		}
+
+		// Manipulate the image URL from GitHub
+		imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
+		imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
+
+		// Append the processed menu data to the result slice
+		allMenus = append(allMenus, map[string]interface{}{
+			"toko_name":      menu.TokoID.NamaToko,
+			"menu_name":      menu.Name,
+			"final_price":    finalPrice,
+			"total_discount": totalDiscount,
+			"rating":         menu.Rating,
+			"sold":           menu.Sold,
+			"image":          imageURL,
+		})
 	}
 
-	// Manipulasi URL gambar dari GitHub
-	imageURL := strings.Replace(menus.Image, "github.com", "raw.githubusercontent.com", 1)
-	imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
-
-	// Tambahkan data menu ke hasil akhir
-	allMenus = append(allMenus, map[string]interface{}{
-		"toko_name":      menus.TokoID.NamaToko,
-		"menu_name":      menus.Name,
-		"final_price":    finalPrice,
-		"total_discount": totalDiscount,
-		"rating":         menus.Rating,
-		"sold":           menus.Sold,
-		"image":          imageURL,
-	})
-
-	// Kirim hasil sebagai JSON response
+	// Send the final result as a JSON response
 	at.WriteJSON(respw, http.StatusOK, allMenus)
 }
 
