@@ -124,8 +124,16 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Validasi format slug, jika mengandung spasi maka ubah spasi menjadi "-"
+	// if strings.Contains(slug, " ") {
+	// 	slug = strings.ReplaceAll(slug, " ", "-")
+	// }
+
+	// Validasi slug tidak mengandung spasi
 	if strings.Contains(slug, " ") {
-		slug = strings.ReplaceAll(slug, " ", "-")
+		var respn model.Response
+		respn.Status = "Error: Slug tidak boleh mengandung spasi. Gunakan format 'nama-toko'."
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
 	}
 
 	docTokoSlug, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"slug": slug})
@@ -577,7 +585,7 @@ func GetAllMarketAddress(respw http.ResponseWriter, req *http.Request) {
 				"description": address.Description,
 				"postal_code": address.PostalCode,
 				"user": map[string]interface{}{
-					"nama":    user.Name,
+					"nama": user.Name,
 				},
 			})
 		}
