@@ -252,7 +252,8 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	dataMenu, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", primitive.M{})
+	var dataMenu []model.Menu
+	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data menu tidak ditemukan"
@@ -261,18 +262,28 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var menus []map[string]interface{}
+
+	for _, menu := range dataMenu {
+		menus = append(menus, map[string]interface{}{
+			"toko":   menu.TokoID.NamaToko,
+			"menu":   menu.Name,
+			"price":  menu.Price,
+			"diskon": menu.Diskon,
+			"rating": menu.Rating,
+			"sold":   menu.Sold,
+			"image":  strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1),
+		})
+	}
+
+	// Structure the final response
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Data menu berhasil diambil",
-		"toko":    dataMenu.TokoID.NamaToko,
-		"menu":    dataMenu.Name,
-		"price":   dataMenu.Price,
-		"diskon":  dataMenu.Diskon,
-		"rating":  dataMenu.Rating,
-		"sold":    dataMenu.Sold,
-		"image":   dataMenu.Image,
+		"data":    menus,
 	}
 
+	// Send the response as JSON
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
