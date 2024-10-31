@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -70,6 +71,101 @@ func CreateAlamat(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, addAlamat)
+}
+
+func UpdateAlamat(respw http.ResponseWriter, req *http.Request) {
+	// Ambil dan decode token dari header
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Ambil ID alamat dari query parameter
+	addressID := req.URL.Query().Get("id")
+	if addressID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Alamat tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Coba konversi addressID ke ObjectID MongoDB
+	objectID, err := primitive.ObjectIDFromHex(addressID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Alamat tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Decode body request untuk mendapatkan data alamat baru
+	var updatedData model.Address
+	err = json.NewDecoder(req.Body).Decode(&updatedData)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Body Tidak Valid"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Ambil data user berdasarkan nomor telepon di payload token
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	// Cek apakah alamat yang akan di-update milik user yang sedang login
+	filter := bson.M{"_id": objectID, "user.phonenumber": docuser.PhoneNumber}
+	var existingAddress model.Address
+	err = config.Mongoconn.Collection("address").FindOne(context.TODO(), filter).Decode(&existingAddress)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Alamat tidak ditemukan atau Anda tidak memiliki hak akses"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Buat data update
+	updateData := bson.M{
+		"street":      updatedData.Street,
+		"province":    updatedData.Province,
+		"city":        updatedData.City,
+		"description": updatedData.Description,
+		"postal_code": updatedData.PostalCode,
+		"updated_at":  time.Now(),
+	}
+
+	update := bson.M{"$set": updateData}
+	_, err = config.Mongoconn.Collection("address").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengupdate alamat"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotModified, respn)
+		return
+	}
+
+	// Kirim response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Alamat berhasil diupdate",
+		"data":    updateData,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
 }
 
 func GetAllCities(respw http.ResponseWriter, req *http.Request) {
