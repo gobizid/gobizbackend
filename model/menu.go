@@ -59,9 +59,20 @@ type Personalization struct {
     ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
     User            []Userdomyikado    `bson:"user" json:"user"`
     BackgroundColor string             `bson:"background_color" json:"backgroundColor"`
-    Font            string             `bson:"font" json:"font"`
-    TextColor       string             `bson:"text_color" json:"textColor"`
-    ButtonStyle     string             `bson:"button_style" json:"buttonStyle"`
+	Font            string             `bson:"font" json:"font"`
+	TextColor       string             `bson:"text_color" json:"textColor"`
+	ButtonStyle     string             `bson:"button_style" json:"buttonStyle"`
+	BorderStyle     string             `bson:"border_style" json:"borderStyle"`         // Menambahkan gaya border (misal: "solid", "dashed", dll)
+	BorderColor     string             `bson:"border_color" json:"borderColor"`         // Menambahkan warna border
+	ShadowEffect    bool               `bson:"shadow_effect" json:"shadowEffect"`       // Efek bayangan
+	HeaderFont      string             `bson:"header_font" json:"headerFont"`           // Font untuk header
+	HeaderColor     string             `bson:"header_color" json:"headerColor"`         // Warna header
+	FooterText      string             `bson:"footer_text" json:"footerText"`           // Teks footer kustom
+	FooterColor     string             `bson:"footer_color" json:"footerColor"`         // Warna footer
+	LinkStyle       string             `bson:"link_style" json:"linkStyle"`             // Gaya link, misalnya underline atau bold
+	LinkColor       string             `bson:"link_color" json:"linkColor"`             // Warna link
+	CardStyle       string             `bson:"card_style" json:"cardStyle"`             // Gaya tampilan card (misal: "rounded", "elevated")
+	Animation       string             `bson:"animation" json:"animation"` 
     CreatedAt       time.Time          `bson:"created_at" json:"createdAt"`
     UpdatedAt       time.Time          `bson:"updated_at" json:"updatedAt"`
 }
