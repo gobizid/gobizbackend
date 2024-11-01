@@ -54,3 +54,14 @@ type Diskon struct {
 	TanggalBerakhir time.Time          `bson:"tanggal_berakhir,omitempty" json:"tanggal_berakhir,omitempty"`
 	Status          string             `bson:"status,omitempty" json:"status,omitempty"`
 }
+
+type Personalization struct {
+    ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+    User            []Userdomyikado    `bson:"user" json:"user"`
+    BackgroundColor string             `bson:"background_color" json:"backgroundColor"`
+    Font            string             `bson:"font" json:"font"`
+    TextColor       string             `bson:"text_color" json:"textColor"`
+    ButtonStyle     string             `bson:"button_style" json:"buttonStyle"`
+    CreatedAt       time.Time          `bson:"created_at" json:"createdAt"`
+    UpdatedAt       time.Time          `bson:"updated_at" json:"updatedAt"`
+}
