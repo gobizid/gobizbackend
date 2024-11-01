@@ -232,6 +232,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/market/slug":
 		controller.GetAllSlug(w, r)
 
+		// Personalization
+	case method == "POST" && path == "/create/personalization":
+		controller.CreatePersonalization(w, r)
 		// order Dev
 	// case method == "POST" && path == "/order":
 	// 	controller.CreateOrder(w, r)
