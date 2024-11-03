@@ -348,7 +348,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Konversi idMenu ke ObjectID
 	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
 	if err != nil {
 		var respn model.Response
@@ -367,11 +366,9 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Update query dengan filter dan update sederhana
 	filter := bson.M{"_id": menuObjID}
 	update := bson.M{"diskon": dataDiskon}
 
-	// Lakukan update pada dokumen
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
 	if err != nil {
 		var respn model.Response
@@ -381,7 +378,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Periksa apakah dokumen ditemukan dan diperbarui
 	if dataMenuUpdate.MatchedCount == 0 {
 		var respn model.Response
 		respn.Status = "Error: Menu not found"
@@ -390,18 +386,15 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Return response jika update berhasil
 	response := map[string]interface{}{
 		"user":    payload.Id,
 		"message": "Diskon added to the menu successfully",
 		"status":  "Success",
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
-
 }
 
 func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
-	// Tambah validasi akses token
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -414,7 +407,6 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Ambil kategori dari parameter query
 	category := req.URL.Query().Get("category")
 	if category == "" {
 		var respn model.Response
@@ -424,9 +416,8 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Query untuk mendapatkan menu berdasarkan kategori
 	filter := bson.M{"category": category}
-	menus, err := atdb.GetAllDoc[model.Menu](config.Mongoconn, "menu", filter)
+	menus, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Menu tidak ditemukan"
@@ -437,35 +428,39 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 
 	var menusByCategory []map[string]interface{}
 
-	// Hitung harga final dan total diskon
-	finalPrice := menus.Price
-	totalDiscount := 0
+	for _, menu := range menus {
+		imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
+		imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
 
-	if menus.Diskon != nil && menus.Diskon.JenisDiskon == "Persentase" {
-		discountValue := float64(menus.Price) * float64(menus.Diskon.NilaiDiskon) / 100
-		finalPrice = menus.Price - int(discountValue)
-		totalDiscount = int(discountValue)
-	} else if menus.Diskon != nil && menus.Diskon.JenisDiskon == "Tetap" {
-		finalPrice = menus.Price - menus.Diskon.NilaiDiskon
-		totalDiscount = menus.Diskon.NilaiDiskon
+		finalPrice := menu.Price
+		diskonValue := 0.00
+
+		if menu.Diskon != nil && menu.Diskon.Status == "Active" {
+			if menu.Diskon.JenisDiskon == "Persentase" {
+				diskonAmount := float64(menu.Price) * (float64(menu.Diskon.NilaiDiskon) / 100)
+				finalPrice = menu.Price - int(diskonAmount)
+				diskonValue = float64(menu.Diskon.NilaiDiskon)
+			} else if menu.Diskon.JenisDiskon == "Nominal" {
+				finalPrice = menu.Price - menu.Diskon.NilaiDiskon
+				if finalPrice < 0 {
+					finalPrice = 0
+				}
+				diskonValue = float64(menu.Diskon.NilaiDiskon)
+			}
+		}
+
+		menusByCategory = append(menusByCategory, map[string]interface{}{
+			"toko_name":   menu.TokoID.NamaToko,
+			"name":        menu.Name,
+			"price":       menu.Price,
+			"final_price": finalPrice,
+			"discount":    diskonValue,
+			"rating":      menu.Rating,
+			"sold":        menu.Sold,
+			"image":       imageURL,
+		})
 	}
 
-	// Manipulasi URL gambar dari GitHub
-	imageURL := strings.Replace(menus.Image, "github.com", "raw.githubusercontent.com", 1)
-	imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
-
-	// Tambahkan data menu yang sesuai kategori ke dalam hasil response
-	menusByCategory = append(menusByCategory, map[string]interface{}{
-		"toko_name": menus.TokoID.NamaToko,
-		"name":      menus.Name,
-		"price":     finalPrice,
-		"discount":  totalDiscount,
-		"rating":    menus.Rating,
-		"sold":      menus.Sold,
-		"image":     imageURL,
-	})
-
-	// Response sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil diambil berdasarkan kategori",
