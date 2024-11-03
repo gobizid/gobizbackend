@@ -279,20 +279,16 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	// Structure the final response
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Data menu berhasil diambil",
 		"data":    menus,
 	}
 
-	// Send the response as JSON
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-// AddDiskonToMenu handles adding a discount to a menu item
 func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
-	// Decode the token from the request header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -307,7 +303,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Get the menu ID from the request URL
 	idMenu := req.URL.Query().Get("id_menu")
 	if idMenu == "" {
 		var respn model.Response
@@ -316,7 +311,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Decode the request body for the diskon ID
 	var requestDiskon struct {
 		DiskonID string `json:"diskonId"`
 	}
@@ -328,7 +322,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Validate the DiskonID format
 	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
 	if err != nil {
 		var respn model.Response
@@ -356,7 +349,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Retrieve the diskon by ID
 	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
 	if err != nil {
 		var respn model.Response
@@ -366,7 +358,6 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Check if the menu already has a discount
 	if menu.Diskon != nil {
 		var respn model.Response
 		respn.Status = "Error: Menu already has a discount"
@@ -375,8 +366,7 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Update the menu to include the discount
-	update := bson.M{"$set": bson.M{"diskon": diskonObjID}}
+	update := bson.M{"$set": bson.M{"diskon": diskon}}
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": idMenu}, update)
 	if err != nil {
 		var respn model.Response
