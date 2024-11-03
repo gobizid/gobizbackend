@@ -2,9 +2,7 @@ package controller
 
 import (
 	"encoding/json"
-	"fmt"
 
-	// "fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -333,6 +331,7 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Konversi idMenu ke ObjectID
 	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
 	if err != nil {
 		var respn model.Response
@@ -342,51 +341,37 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": menuObjID})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Menu not found" + idMenu
-		respn.Response = "Menu with the given ID does not exist"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Diskon not found"
-		respn.Response = "Diskon with the given ID does not exist"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	if menu.Diskon != nil {
-		var respn model.Response
-		respn.Status = "Error: Menu already has a discount"
-		respn.Response = "Menu cannot have multiple discounts"
-		at.WriteJSON(respw, http.StatusConflict, respn)
-		return
-	}
-
+	// Update query dengan filter dan update sederhana
 	filter := bson.M{"_id": menuObjID}
-	update := bson.M{"$set": bson.M{"diskon": diskon}}
+	update := bson.M{"$set": bson.M{"diskon": diskonObjID}}
+
+	// Lakukan update pada dokumen
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
 	if err != nil {
 		var respn model.Response
-		respn.Status = fmt.Sprintf("Error: Failed to update menu | data filter: %v | data update: %v", filter, update)
+		respn.Status = "Error: Failed to update menu"
 		respn.Response = "Could not add discount to the menu"
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
 
-	response := map[string]interface{}{
-		"user":    payload.Id,
-		"message": "Diskon added to the menu successfully: " + diskon.ID.Hex(),
-		"status":  "Success",
-		"data":    dataMenuUpdate,
+	// Periksa apakah dokumen ditemukan dan diperbarui
+	if dataMenuUpdate.MatchedCount == 0 {
+		var respn model.Response
+		respn.Status = "Error: Menu not found"
+		respn.Response = "Menu with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
+	// Return response jika update berhasil
+	response := map[string]interface{}{
+		"user":    payload.Id,
+		"message": "Diskon added to the menu successfully",
+		"status":  "Success",
+	}
 	at.WriteJSON(respw, http.StatusOK, response)
+
 }
 
 func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
