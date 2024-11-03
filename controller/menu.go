@@ -290,55 +290,103 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-// func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-// 	var menus []model.Menu
-// 	_, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
-// 	if err != nil {
-// 		var respn model.Response
-// 		respn.Status = "Error: Data menu tidak ditemukan"
-// 		respn.Response = err.Error()
-// 		at.WriteJSON(respw, http.StatusNotFound, respn)
-// 		return
-// 	}
+// AddDiskonToMenu handles adding a discount to a menu item
+func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
+	// Decode the token from the request header
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
 
-// 	var allMenus []map[string]interface{}
+	// Get the menu ID from the request URL
+	idMenu := req.URL.Query().Get("id_menu")
+	if idMenu == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
-// 	// Iterate over each menu item to calculate final price and total discount
-// 	for _, menu := range menus {
-// 		finalPrice := menu.Price
-// 		totalDiscount := 0
+	// Decode the request body for the diskon ID
+	var requestDiskon struct {
+		DiskonID string `json:"diskonId"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
-// 		// Check if the menu has a discount and calculate accordingly
-// 		if menu.Diskon != nil && len(menu.Diskon) > 0 {
-// 			if menu.Diskon[0].JenisDiskon == "Persentase" {
-// 				discountValue := float64(menu.Price) * float64(menu.Diskon[0].NilaiDiskon) / 100
-// 				finalPrice = menu.Price - int(discountValue)
-// 				totalDiscount = int(discountValue)
-// 			} else if menu.Diskon[0].JenisDiskon == "Tetap" {
-// 				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
-// 				totalDiscount = menu.Diskon[0].NilaiDiskon
-// 			}
-// 		}
+	// Validate the DiskonID format
+	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "Invalid diskon ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
-// 		// Manipulate the image URL from GitHub
-// 		imageURL := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
-// 		imageURL = strings.Replace(imageURL, "/blob/", "/", 1)
+	// Retrieve the menu by ID
+	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": idMenu})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu not found"
+		respn.Response = "Menu with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
 
-// 		// Append the processed menu data to the result slice
-// 		allMenus = append(allMenus, map[string]interface{}{
-// 			"toko_name":      menu.TokoID.NamaToko,
-// 			"menu_name":      menu.Name,
-// 			"final_price":    finalPrice,
-// 			"total_discount": totalDiscount,
-// 			"rating":         menu.Rating,
-// 			"sold":           menu.Sold,
-// 			"image":          imageURL,
-// 		})
-// 	}
+	// Retrieve the diskon by ID
+	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon not found"
+		respn.Response = "Diskon with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
 
-// 	// Send the final result as a JSON response
-// 	at.WriteJSON(respw, http.StatusOK, allMenus)
-// }
+	// Check if the menu already has a discount
+	if menu.Diskon != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu already has a discount"
+		respn.Response = "Menu cannot have multiple discounts"
+		at.WriteJSON(respw, http.StatusConflict, respn)
+		return
+	}
+
+	// Update the menu to include the discount
+	update := bson.M{"$set": bson.M{"diskon": diskonObjID}}
+	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": idMenu}, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to update menu"
+		respn.Response = "Could not add discount to the menu"
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"user":    payload.Id,
+		"message": "Diskon added to the menu successfully: " + diskon.ID.Hex(),
+		"status":  "Success",
+		"data":    dataMenuUpdate,
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
+}
 
 func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	// Tambah validasi akses token
