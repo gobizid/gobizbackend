@@ -155,7 +155,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// menu
 	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
-	case method == "PUT" && path == "/update/menu":
+	// case method == "PUT" && path == "/update/menu":
 	// 	controller.UpdateDataMenu(w, r)
 	// case method == "DELETE" && path == "/update/menu":
 	// 	controller.DeleteDataMenu(w, r)
@@ -189,7 +189,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteDiskon(w, r)
 	case method == "GET" && path == "/diskon/":
 		controller.GetDiskonById(w, r)
-	case method == "GET" && path == "/menu":
+	case method == "GET" && path == "/menu/category/":
 		controller.GetDataMenuByCategory(w, r)
 	case method == "POST" && path == "/menu/diskon":
 		controller.AddDiskonToMenu(w, r)
