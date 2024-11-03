@@ -338,11 +338,10 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Retrieve the menu by ID
 	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": idMenu})
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Menu not found"
+		respn.Status = "Error: Menu not found" + idMenu
 		respn.Response = "Menu with the given ID does not exist"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
