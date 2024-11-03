@@ -343,7 +343,7 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 
 	// Update query dengan filter dan update sederhana
 	filter := bson.M{"_id": menuObjID}
-	update := bson.M{"$set": bson.M{"diskon": diskonObjID}}
+	update := bson.M{"diskon": diskonObjID}
 
 	// Lakukan update pada dokumen
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
