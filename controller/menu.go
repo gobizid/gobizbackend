@@ -19,7 +19,6 @@ import (
 )
 
 func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
-	// Decode token untuk mendapatkan ID pengguna
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -34,7 +33,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Parsing form data dengan batasan 10MB
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -44,7 +42,6 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Handle upload gambar menu (opsional)
 	var menuImageURL string
 	file, header, err := req.FormFile("menuImage")
 	if err == nil {
@@ -57,9 +54,7 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Generate nama file dengan hashing
 		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
-		// Upload gambar ke GitHub
 		GitHubAccessToken := config.GHAccessToken
 		GitHubAuthorName := "Rolly Maulana Awangga"
 		GitHubAuthorEmail := "awangga@gmail.com"
@@ -80,17 +75,16 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		menuImageURL = *content.Content.HTMLURL
 	}
 
-	// Ambil data dari form
 	menuName := req.FormValue("name")
 	menuPrice := req.FormValue("price")
 	menuRating := req.FormValue("rating")
 	menuSold := req.FormValue("sold")
+	categoryID := req.FormValue("category_id")
 
 	price, _ := strconv.Atoi(menuPrice)
 	rating, _ := strconv.ParseFloat(menuRating, 64)
 	sold, _ := strconv.Atoi(menuSold)
 
-	// Ambil data toko berdasarkan ID pengguna dari token
 	filter := bson.M{
 		"user.phonenumber": payload.Id,
 	}
@@ -104,22 +98,42 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat ID baru untuk menu
-	menuID := primitive.NewObjectID()
-
-	// Membuat menu baru dengan referensi ke objek Toko
-	newMenu := model.Menu{
-		ID:     menuID,
-		TokoID: existingToko, // Menyimpan objek Toko di sini
-		Name:   menuName,
-		Price:  price,
-		Diskon: nil,
-		Rating: rating,
-		Sold:   sold,
-		Image:  menuImageURL,
+	filterCategory := bson.M{
+		"_id": func() primitive.ObjectID {
+			objID, err := primitive.ObjectIDFromHex(categoryID)
+			if err != nil {
+				var respn model.Response
+				respn.Status = "Error: Invalid Category ID"
+				respn.Response = err.Error()
+				at.WriteJSON(respw, http.StatusBadRequest, respn)
+				return primitive.NilObjectID
+			}
+			return objID
+		}(),
+	}
+	dataCategory, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", filterCategory)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Category not found"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
 	}
 
-	// Masukkan data menu ke dalam collection menu di MongoDB
+	menuID := primitive.NewObjectID()
+
+	newMenu := model.Menu{
+		ID:       menuID,
+		TokoID:   existingToko,
+		Name:     menuName,
+		Price:    price,
+		Category: dataCategory,
+		Diskon:   nil,
+		Rating:   rating,
+		Sold:     sold,
+		Image:    menuImageURL,
+	}
+
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "menu", newMenu)
 	if err != nil {
 		var respn model.Response
@@ -129,15 +143,15 @@ func InsertDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim respons sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil ditambahkan ke toko",
 		"data": map[string]interface{}{
-			"menu_id": menuID.Hex(),
-			"name":    newMenu.Name,
-			"price":   newMenu.Price,
-			"rating":  newMenu.Rating,
+			"menu_id":  menuID.Hex(),
+			"name":     newMenu.Name,
+			"price":    newMenu.Price,
+			"category": newMenu.Category.CategoryName,
+			"rating":   newMenu.Rating,
 			"toko": map[string]interface{}{
 				"id":   existingToko.ID.Hex(),
 				"name": existingToko.NamaToko,
@@ -441,7 +455,6 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parsing form data dengan batasan 10MB
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -451,7 +464,6 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Handle upload gambar menu (opsional)
 	var menuImageURL string = dataMenu.Image
 	file, header, err := req.FormFile("menuImage")
 	if err == nil {
@@ -464,9 +476,7 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Generate nama file dengan hashing
 		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
-		// Upload gambar ke GitHub
 		GitHubAccessToken := config.GHAccessToken
 		GitHubAuthorName := "Rolly Maulana Awangga"
 		GitHubAuthorEmail := "awangga@gmail.com"
@@ -487,23 +497,48 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		menuImageURL = *content.Content.HTMLURL
 	}
 
-	// Ambil data dari form
 	menuName := req.FormValue("name")
 	menuPrice := req.FormValue("price")
 	menuRating := req.FormValue("rating")
 	menuSold := req.FormValue("sold")
+	categoryID := req.FormValue("category_id")
 
 	price, _ := strconv.Atoi(menuPrice)
 	rating, _ := strconv.ParseFloat(menuRating, 64)
 	sold, _ := strconv.Atoi(menuSold)
 
-	// Update data menu dengan data baru
+	// Ambil data kategori berdasarkan ID jika diberikan
+	var existingCategory model.Category
+	if categoryID != "" {
+		categoryObjID, err := primitive.ObjectIDFromHex(categoryID)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: ID Kategori tidak valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusBadRequest, respn)
+			return
+		}
+		categoryFilter := bson.M{"_id": categoryObjID}
+		existingCategory, err = atdb.GetOneDoc[model.Category](config.Mongoconn, "category", categoryFilter)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Kategori tidak ditemukan"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusNotFound, respn)
+			return
+		}
+	}
+
 	updateFields := bson.M{
 		"name":   menuName,
 		"price":  price,
 		"rating": rating,
 		"sold":   sold,
 		"image":  menuImageURL,
+	}
+
+	if categoryID != "" {
+		updateFields["category"] = existingCategory
 	}
 
 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, updateFields)
@@ -515,7 +550,6 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim respons sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Menu berhasil diperbarui",
@@ -526,6 +560,10 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 			"price":   price,
 			"rating":  rating,
 			"image":   menuImageURL,
+			"category": map[string]interface{}{
+				"id":            existingCategory.ID.Hex(),
+				"name_category": existingCategory.CategoryName,
+			},
 		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)

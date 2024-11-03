@@ -7,14 +7,15 @@ import (
 )
 
 type Menu struct {
-	ID     primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	TokoID Toko               `json:"toko" bson:"toko"`
-	Name   string             `json:"name" bson:"name"`
-	Price  int                `json:"price" bson:"price"`
-	Diskon *Diskon            `json:"diskon" bson:"diskon"`
-	Rating float64            `json:"rating" bson:"rating"`
-	Sold   int                `json:"sold" bson:"sold"`
-	Image  string             `json:"image" bson:"image"`
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	TokoID   Toko               `json:"toko" bson:"toko"`
+	Name     string             `json:"name" bson:"name"`
+	Price    int                `json:"price" bson:"price"`
+	Category Category           `json:"category" bson:"category"`
+	Diskon   *Diskon            `json:"diskon" bson:"diskon"`
+	Rating   float64            `json:"rating" bson:"rating"`
+	Sold     int                `json:"sold" bson:"sold"`
+	Image    string             `json:"image" bson:"image"`
 }
 
 type Toko struct {
