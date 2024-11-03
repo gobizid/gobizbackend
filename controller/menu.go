@@ -2,6 +2,8 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
+
 	// "fmt"
 	"io"
 	"net/http"
@@ -371,7 +373,7 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Failed to update menu"
+		respn.Status = fmt.Sprintf("Error: Failed to update menu | data filter: %v | data update: %v", filter, update)
 		respn.Response = "Could not add discount to the menu"
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
