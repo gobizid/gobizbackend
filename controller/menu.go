@@ -262,25 +262,25 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	var menus []map[string]interface{}
-
 	for _, menu := range data {
 		imageUrl := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
 		imageUrls := strings.Replace(imageUrl, "/blob/", "/", 1)
 
+		// Hitung harga setelah diskon jika diskon ada dan aktif
 		finalPrice := menu.Price
 		diskonValue := 0.00
 
-		if len(menu.Diskon) > 0 && menu.Diskon[0].Status == "Active" {
-			if menu.Diskon[0].JenisDiskon == "Persentase" {
-				diskonAmount := float64(menu.Price) * (float64(menu.Diskon[0].NilaiDiskon) / 100)
+		if menu.Diskon != nil && menu.Diskon.Status == "Active" {
+			if menu.Diskon.JenisDiskon == "Persentase" {
+				diskonAmount := float64(menu.Price) * (float64(menu.Diskon.NilaiDiskon) / 100)
 				finalPrice = menu.Price - int(diskonAmount)
-				diskonValue = float64(menu.Diskon[0].NilaiDiskon)
-			} else if menu.Diskon[0].JenisDiskon == "Nominal" {
-				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
+				diskonValue = float64(menu.Diskon.NilaiDiskon)
+			} else if menu.Diskon.JenisDiskon == "Nominal" {
+				finalPrice = menu.Price - menu.Diskon.NilaiDiskon
 				if finalPrice < 0 {
-					finalPrice = 0
+					finalPrice = 0 // Pastikan harga tidak negatif
 				}
-				diskonValue = float64(menu.Diskon[0].NilaiDiskon)
+				diskonValue = float64(menu.Diskon.NilaiDiskon)
 			}
 		}
 
@@ -441,13 +441,13 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	finalPrice := menus.Price
 	totalDiscount := 0
 
-	if len(menus.Diskon) > 0 && menus.Diskon[0].JenisDiskon == "Persentase" {
-		discountValue := float64(menus.Price) * float64(menus.Diskon[0].NilaiDiskon) / 100
+	if menus.Diskon != nil && menus.Diskon.JenisDiskon == "Persentase" {
+		discountValue := float64(menus.Price) * float64(menus.Diskon.NilaiDiskon) / 100
 		finalPrice = menus.Price - int(discountValue)
 		totalDiscount = int(discountValue)
-	} else if len(menus.Diskon) > 0 && menus.Diskon[0].JenisDiskon == "Tetap" {
-		finalPrice = menus.Price - menus.Diskon[0].NilaiDiskon
-		totalDiscount = menus.Diskon[0].NilaiDiskon
+	} else if menus.Diskon != nil && menus.Diskon.JenisDiskon == "Tetap" {
+		finalPrice = menus.Price - menus.Diskon.NilaiDiskon
+		totalDiscount = menus.Diskon.NilaiDiskon
 	}
 
 	// Manipulasi URL gambar dari GitHub
@@ -456,13 +456,13 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 
 	// Tambahkan data menu yang sesuai kategori ke dalam hasil response
 	menusByCategory = append(menusByCategory, map[string]interface{}{
-		"toko_name":      menus.TokoID.NamaToko,
-		"menu_name":      menus.Name,
-		"final_price":    finalPrice,
-		"total_discount": totalDiscount,
-		"rating":         menus.Rating,
-		"sold":           menus.Sold,
-		"image":          imageURL,
+		"toko_name": menus.TokoID.NamaToko,
+		"name":      menus.Name,
+		"price":     finalPrice,
+		"discount":  totalDiscount,
+		"rating":    menus.Rating,
+		"sold":      menus.Sold,
+		"image":     imageURL,
 	})
 
 	// Response sukses
