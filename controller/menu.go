@@ -252,7 +252,7 @@ func GetDataMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
-	// var dataMenu []model.Menu
+	// Ambil semua dokumen menu dari koleksi
 	data, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", primitive.M{})
 	if err != nil {
 		var respn model.Response
@@ -268,14 +268,33 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		imageUrl := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
 		imageUrls := strings.Replace(imageUrl, "/blob/", "/", 1)
 
+		// Hitung harga setelah diskon jika diskon ada dan aktif
+		finalPrice := menu.Price
+		diskonValue := 0.00
+
+		if menu.Diskon != nil && menu.Diskon[0].Status == "Active" {
+			if menu.Diskon[0].JenisDiskon == "Persentase" {
+				diskonAmount := float64(menu.Price) * (float64(menu.Diskon[0].NilaiDiskon) / 100)
+				finalPrice = menu.Price - int(diskonAmount)
+				diskonValue = float64(menu.Diskon[0].NilaiDiskon)
+			} else if menu.Diskon[0].JenisDiskon == "Nominal" {
+				finalPrice = menu.Price - menu.Diskon[0].NilaiDiskon
+				if finalPrice < 0 {
+					finalPrice = 0 // Pastikan harga tidak negatif
+				}
+				diskonValue = float64(menu.Diskon[0].NilaiDiskon)
+			}
+		}
+
 		menus = append(menus, map[string]interface{}{
-			"toko":   menu.TokoID.NamaToko,
-			"menu":   menu.Name,
-			"price":  menu.Price,
-			"diskon": menu.Diskon,
-			"rating": menu.Rating,
-			"sold":   menu.Sold,
-			"image":  imageUrls,
+			"toko":        menu.TokoID.NamaToko,
+			"menu":        menu.Name,
+			"price":       menu.Price,
+			"final_price": finalPrice,
+			"diskon":      diskonValue,
+			"rating":      menu.Rating,
+			"sold":        menu.Sold,
+			"image":       imageUrls,
 		})
 	}
 
