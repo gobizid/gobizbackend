@@ -285,14 +285,14 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 
 		menus = append(menus, map[string]interface{}{
-			"toko":        menu.TokoID.NamaToko,
-			"menu":        menu.Name,
-			"price":       menu.Price,
-			"final_price": finalPrice,
-			"diskon":      diskonValue,
-			"rating":      menu.Rating,
-			"sold":        menu.Sold,
-			"image":       imageUrls,
+			"toko":       menu.TokoID.NamaToko,
+			"menu":       menu.Name,
+			"price_awal": menu.Price,
+			"price":      finalPrice,
+			"diskon":     diskonValue,
+			"rating":     menu.Rating,
+			"sold":       menu.Sold,
+			"image":      imageUrls,
 		})
 	}
 
