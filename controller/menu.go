@@ -341,9 +341,18 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	dataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon not found"
+		respn.Response = "Diskon with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
 	// Update query dengan filter dan update sederhana
 	filter := bson.M{"_id": menuObjID}
-	update := bson.M{"diskon": diskonObjID}
+	update := bson.M{"diskon": dataDiskon}
 
 	// Lakukan update pada dokumen
 	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
