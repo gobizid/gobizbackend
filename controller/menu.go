@@ -366,8 +366,9 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	filter := bson.M{"_id": menuObjID}
 	update := bson.M{"$set": bson.M{"diskon": diskon}}
-	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": idMenu}, update)
+	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Failed to update menu"
