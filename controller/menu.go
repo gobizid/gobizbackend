@@ -338,7 +338,16 @@ func AddDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": idMenu})
+	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid ID Menu format"
+		respn.Response = "Invalid menu ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": menuObjID})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Menu not found" + idMenu

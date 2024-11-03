@@ -152,17 +152,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/auth/menu":
 		controller.GetMenu(w, r)
 
-		// menu and toko
-	case method == "POST" && path == "/create/toko":
-		controller.CreateToko(w, r)
-	case method == "PUT" && path == "/update/toko":
-		controller.UpdateToko(w, r)
-	case method == "GET" && path == "/toko-id":
-		controller.GetTokoByID(w, r)
-	case method == "GET" && path == "/toko-nama":
-		controller.GetAllNamaToko(w, r)
-	case method == "DELETE" && path == "/delete/toko":
-		controller.DeleteTokoByID(w, r)
+		// menu
 	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
 	case method == "PUT" && path == "/update/menu":
@@ -175,16 +165,18 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllMenu(w, r)
 	case method == "GET" && path == "/menu/category":
 		controller.GetAllCategory(w, r)
-	case method == "GET" && path == "/menu":
-		controller.GetDataMenuByCategory(w, r)
-	case method == "POST" && path == "/menu/diskon":
-		controller.AddDiskonToMenu(w, r)
-	// case method == "PUT" && path == "/update/menu/diskon":
-	// 	controller.UpdateDiskonInMenu(w, r)
-	// case method == "PUT" && path == "/menu/remove/diskon":
-	// 	controller.UpdateMenuToRemoveDiskonByName(w, r)
-	// case method == "GET" && path == "/menu/all/admin":
-	// 	controller.GetAllMenuAdmin(w, r)
+
+		// toko
+	case method == "POST" && path == "/create/toko":
+		controller.CreateToko(w, r)
+	case method == "PUT" && path == "/update/toko":
+		controller.UpdateToko(w, r)
+	case method == "GET" && path == "/toko-id":
+		controller.GetTokoByID(w, r)
+	case method == "GET" && path == "/toko-nama":
+		controller.GetAllNamaToko(w, r)
+	case method == "DELETE" && path == "/delete/toko":
+		controller.DeleteTokoByID(w, r)
 
 	// diskon
 	case method == "GET" && path == "/diskon":
@@ -197,8 +189,18 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteDiskon(w, r)
 	case method == "GET" && path == "/diskon/":
 		controller.GetDiskonById(w, r)
+	case method == "GET" && path == "/menu":
+		controller.GetDataMenuByCategory(w, r)
+	case method == "POST" && path == "/menu/diskon":
+		controller.AddDiskonToMenu(w, r)
+	// case method == "PUT" && path == "/update/menu/diskon":
+	// 	controller.UpdateDiskonInMenu(w, r)
+	// case method == "PUT" && path == "/menu/remove/diskon":
+	// 	controller.UpdateMenuToRemoveDiskonByName(w, r)
+	// case method == "GET" && path == "/menu/all/admin":
+	// 	controller.GetAllMenuAdmin(w, r)
 
-		// category
+	// category
 	case method == "POST" && path == "/create/category":
 		controller.CreateCategory(w, r)
 	case method == "GET" && path == "/category/all":
