@@ -416,8 +416,9 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	filter := bson.M{"category": category}
-	menus, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "toko", filter)
+	// Filter pencarian menggunakan nama kategori di subdokumen `category`
+	filter := bson.M{"category.name_category": category}
+	menus, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Menu tidak ditemukan"
@@ -468,115 +469,6 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
-}
-
-func InsertDiskonToMenu(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-	if err != nil {
-		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-		if err != nil {
-			var respn model.Response
-			respn.Status = "Error: Token Tidak Valid"
-			respn.Info = at.GetSecretFromHeader(req)
-			respn.Location = "Decode Token Error"
-			respn.Response = err.Error()
-			at.WriteJSON(respw, http.StatusForbidden, respn)
-			return
-		}
-	}
-
-	idMenu := req.URL.Query().Get("_id")
-	if idMenu == "" {
-		var respn model.Response
-		respn.Status = "Error: ID Menu tidak ditemukan"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	var requestDiskon struct {
-		DiskonID string `json:"diskonId"`
-	}
-
-	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
-		var respn model.Response
-		respn.Status = "Error: Bad Request"
-		respn.Response = "Failed to parse request body"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Invalid DiskonID"
-		respn.Response = "Invalid diskon ID format"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Invalid Menu ID"
-		respn.Response = "Invalid menu ID format"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	menu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", bson.M{"_id": menuObjID})
-	if err != nil || menu.ID == primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: Menu tidak ditemukan"
-		respn.Response = "Menu with the given ID does not exist"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	diskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
-	if err != nil || diskon.ID == primitive.NilObjectID {
-		var respn model.Response
-		respn.Status = "Error: Diskon not found"
-		respn.Response = "Diskon with the given ID does not exist"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	if menu.TokoID.ID != diskon.Toko[0].ID {
-		var respn model.Response
-		respn.Status = "Error: Toko ID mismatch"
-		respn.Response = "The Toko ID in Diskon and Menu does not match"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	update := bson.M{
-		"$set": bson.M{
-			"diskon": bson.M{
-				"jenis_diskon":     diskon.JenisDiskon,
-				"nilai_diskon":     diskon.NilaiDiskon,
-				"tanggal_mulai":    diskon.TanggalMulai,
-				"tanggal_berakhir": diskon.TanggalBerakhir,
-				"status":           diskon.Status,
-			},
-		},
-	}
-
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": menuObjID}, update)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Failed to update menu with diskon"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	responseData := map[string]interface{}{
-		"user":    payload.Id,
-		"message": "Diskon added to the menu successfully",
-		"status":  "Success",
-	}
-
-	at.WriteJSON(respw, http.StatusOK, responseData)
 }
 
 // func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
