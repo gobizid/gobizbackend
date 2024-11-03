@@ -155,16 +155,14 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// menu
 	case method == "POST" && path == "/add/menu":
 		controller.InsertDataMenu(w, r)
-	// case method == "PUT" && path == "/update/menu":
-	// 	controller.UpdateDataMenu(w, r)
-	// case method == "DELETE" && path == "/update/menu":
-	// 	controller.DeleteDataMenu(w, r)
-	case method == "GET" && path == "/page/toko":
-		controller.GetPageMenuByToko(w, r)
 	case method == "GET" && path == "/menu":
 		controller.GetAllMenu(w, r)
 	case method == "GET" && path == "/menu/category":
 		controller.GetAllCategory(w, r)
+	case method == "POST" && path == "/menu/diskon":
+		controller.AddDiskonToMenu(w, r)
+	case method == "GET" && path == "/menu/update":
+		controller.UpdateDataMenu(w, r)
 
 		// toko
 	case method == "POST" && path == "/create/toko":
@@ -177,6 +175,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllNamaToko(w, r)
 	case method == "DELETE" && path == "/delete/toko":
 		controller.DeleteTokoByID(w, r)
+	case method == "GET" && path == "/page/toko":
+		controller.GetPageMenuByToko(w, r)
 
 	// diskon
 	case method == "GET" && path == "/diskon":
@@ -191,8 +191,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetDiskonById(w, r)
 	case method == "GET" && path == "/menu/category/":
 		controller.GetDataMenuByCategory(w, r)
-	case method == "POST" && path == "/menu/diskon":
-		controller.AddDiskonToMenu(w, r)
+
 	// case method == "PUT" && path == "/update/menu/diskon":
 	// 	controller.UpdateDiskonInMenu(w, r)
 	// case method == "PUT" && path == "/menu/remove/diskon":
