@@ -626,9 +626,74 @@ func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-func DeleteDiskonFromMenu(respw http.ResponseWriter, req *http.Request) {
+func DeleteDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
+	// Decode dan validasi token
+	// _, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	// if err != nil {
+	// 	_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+	// 	if err != nil {
+	// 		var respn model.Response
+	// 		respn.Status = "Error: Token Tidak Valid"
+	// 		respn.Info = at.GetSecretFromHeader(req)
+	// 		respn.Location = "Decode Token Error"
+	// 		respn.Response = err.Error()
+	// 		at.WriteJSON(respw, http.StatusForbidden, respn)
+	// 		return
+	// 	}
+	// }
 
+	// Ambil ID menu dari query parameter
+	idMenu := req.URL.Query().Get("id_menu")
+	if idMenu == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi idMenu dari string ke ObjectID MongoDB
+	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid ID Menu format"
+		respn.Response = "Invalid menu ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Filter untuk menu berdasarkan ID
+	filter := bson.M{"_id": menuObjID}
+
+	// Update untuk menghapus field diskon (mengatur nilainya ke null)
+	update := bson.M{"$set": bson.M{"diskon": nil}}
+
+	// Lakukan update untuk menghapus diskon dari menu
+	result, err := config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus diskon dari menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Cek apakah ada dokumen yang diperbarui
+	if result.MatchedCount == 0 {
+		var respn model.Response
+		respn.Status = "Error: Menu tidak ditemukan"
+		respn.Response = "Menu dengan ID yang diberikan tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Kirim response sukses
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Diskon berhasil dihapus dari menu",
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
 }
+
 
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	// Decode and validate token
