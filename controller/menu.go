@@ -1,8 +1,8 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
-
 	"io"
 	"net/http"
 	"strconv"
@@ -631,22 +631,20 @@ func DeleteDiskonFromMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
-	// Decode token untuk mendapatkan payload
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	// Decode and validate token
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
-		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 		if err != nil {
 			var respn model.Response
 			respn.Status = "Error: Token Tidak Valid"
-			respn.Info = at.GetSecretFromHeader(req)
-			respn.Location = "Decode Token Error"
 			respn.Response = err.Error()
 			at.WriteJSON(respw, http.StatusForbidden, respn)
 			return
 		}
 	}
 
-	// Ambil id_menu dari URL
+	// Retrieve menu ID and discount ID from request
 	idMenu := req.URL.Query().Get("id_menu")
 	if idMenu == "" {
 		var respn model.Response
@@ -655,11 +653,9 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Decode body untuk mendapatkan DiskonID baru
 	var requestDiskon struct {
 		DiskonID string `json:"diskonId"`
 	}
-
 	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
 		var respn model.Response
 		respn.Status = "Error: Bad Request"
@@ -668,17 +664,7 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Konversi DiskonID ke ObjectID
-	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Invalid DiskonID"
-		respn.Response = "Invalid diskon ID format"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	// Konversi id_menu ke ObjectID
+	// Convert IDs to ObjectID
 	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
 	if err != nil {
 		var respn model.Response
@@ -688,9 +674,18 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Ambil data diskon dari database
-	dataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
 	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "Invalid diskon ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Retrieve discount data
+	dataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil || dataDiskon.ID == primitive.NilObjectID {
 		var respn model.Response
 		respn.Status = "Error: Diskon not found"
 		respn.Response = "Diskon with the given ID does not exist"
@@ -698,35 +693,31 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Update menu dengan diskon baru
+	// Update menu document to add discount as an object
 	filter := bson.M{"_id": menuObjID}
-	update := bson.M{"$set": bson.M{"diskon": dataDiskon}}
+	update := bson.M{
+		"$set": bson.M{
+			"diskon": dataDiskon,
+		},
+	}
 
-	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
+
+	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Failed to update menu"
-		respn.Response = "Could not update discount in the menu"
+		respn.Response = "Could not update discount in the menu. Error: " + err.Error()
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
 
-	if dataMenuUpdate.MatchedCount == 0 {
-		var respn model.Response
-		respn.Status = "Error: Menu not found"
-		respn.Response = "Menu with the given ID does not exist"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	// Response sukses
 	response := map[string]interface{}{
-		"user":    payload.Id,
 		"message": "Diskon updated in the menu successfully",
 		"status":  "Success",
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
 
 func GetMenuById(respw http.ResponseWriter, req *http.Request) {
 
