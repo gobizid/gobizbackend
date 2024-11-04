@@ -631,7 +631,101 @@ func DeleteDiskonFromMenu(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
+	// Decode token untuk mendapatkan payload
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
 
+	// Ambil id_menu dari URL
+	idMenu := req.URL.Query().Get("id_menu")
+	if idMenu == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Decode body untuk mendapatkan DiskonID baru
+	var requestDiskon struct {
+		DiskonID string `json:"diskonId"`
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&requestDiskon); err != nil {
+		var respn model.Response
+		respn.Status = "Error: Bad Request"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi DiskonID ke ObjectID
+	diskonObjID, err := primitive.ObjectIDFromHex(requestDiskon.DiskonID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid DiskonID"
+		respn.Response = "Invalid diskon ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi id_menu ke ObjectID
+	menuObjID, err := primitive.ObjectIDFromHex(idMenu)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Invalid ID Menu format"
+		respn.Response = "Invalid menu ID format"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Ambil data diskon dari database
+	dataDiskon, err := atdb.GetOneDoc[model.Diskon](config.Mongoconn, "diskon", bson.M{"_id": diskonObjID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Diskon not found"
+		respn.Response = "Diskon with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Update menu dengan diskon baru
+	filter := bson.M{"_id": menuObjID}
+	update := bson.M{"$set": bson.M{"diskon": dataDiskon}}
+
+	dataMenuUpdate, err := atdb.UpdateOneDoc(config.Mongoconn, "menu", filter, update)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Failed to update menu"
+		respn.Response = "Could not update discount in the menu"
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	if dataMenuUpdate.MatchedCount == 0 {
+		var respn model.Response
+		respn.Status = "Error: Menu not found"
+		respn.Response = "Menu with the given ID does not exist"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Response sukses
+	response := map[string]interface{}{
+		"user":    payload.Id,
+		"message": "Diskon updated in the menu successfully",
+		"status":  "Success",
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
 }
 
 func GetMenuById(respw http.ResponseWriter, req *http.Request) {
