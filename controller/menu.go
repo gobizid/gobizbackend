@@ -211,33 +211,36 @@ func GetAllMenu(respw http.ResponseWriter, req *http.Request) {
 		imageUrl := strings.Replace(menu.Image, "github.com", "raw.githubusercontent.com", 1)
 		imageUrls := strings.Replace(imageUrl, "/blob/", "/", 1)
 
-		// Hitung harga setelah diskon jika diskon ada dan aktif
 		finalPrice := menu.Price
 		diskonValue := 0.00
+		potonganHarga := 0.00
 
 		if menu.Diskon != nil && menu.Diskon.Status == "Active" {
 			if menu.Diskon.JenisDiskon == "Persentase" {
 				diskonAmount := float64(menu.Price) * (float64(menu.Diskon.NilaiDiskon) / 100)
 				finalPrice = menu.Price - int(diskonAmount)
 				diskonValue = float64(menu.Diskon.NilaiDiskon)
+				potonganHarga = diskonAmount
 			} else if menu.Diskon.JenisDiskon == "Nominal" {
 				finalPrice = menu.Price - menu.Diskon.NilaiDiskon
 				if finalPrice < 0 {
-					finalPrice = 0 // Pastikan harga tidak negatif
+					finalPrice = 0
 				}
 				diskonValue = float64(menu.Diskon.NilaiDiskon)
+				potonganHarga = float64(menu.Diskon.NilaiDiskon)
 			}
 		}
 
 		menus = append(menus, map[string]interface{}{
-			"toko":       menu.TokoID.NamaToko,
-			"menu":       menu.Name,
-			"price_awal": menu.Price,
-			"price":      finalPrice,
-			"diskon":     diskonValue,
-			"rating":     menu.Rating,
-			"sold":       menu.Sold,
-			"image":      imageUrls,
+			"toko":         menu.TokoID.NamaToko,
+			"menu":         menu.Name,
+			"price_awal":   menu.Price,
+			"price":        finalPrice,
+			"nilai_diskon": diskonValue,
+			"diskon":       potonganHarga,
+			"rating":       menu.Rating,
+			"sold":         menu.Sold,
+			"image":        imageUrls,
 		})
 	}
 
