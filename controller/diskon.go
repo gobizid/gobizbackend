@@ -14,10 +14,10 @@ import (
 )
 
 func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
-	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 
 	if err != nil {
-		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 
 		if err != nil {
 			var respn model.Response
@@ -28,16 +28,6 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 			at.WriteJSON(respw, http.StatusForbidden, respn)
 			return
 		}
-	}
-
-	filter := bson.M{"user.phonenumber": payload.Id}
-	docToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "menu", filter)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Store not found"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
 	}
 
 	var datadiskon model.Diskon
@@ -324,7 +314,6 @@ func GetDiskonById(respw http.ResponseWriter, req *http.Request) {
 	response := map[string]interface{}{
 		"statusResponse":   "success",
 		"message":          "Diskon berhasil ditemukan",
-		"toko":             diskon.Toko,
 		"jenis_diskon":     diskon.JenisDiskon,
 		"nilai_diskon":     diskon.NilaiDiskon,
 		"tanggal_mulai":    diskon.TanggalMulai,
