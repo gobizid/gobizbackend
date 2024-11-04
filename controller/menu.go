@@ -628,19 +628,19 @@ func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
 
 func DeleteDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	// Decode dan validasi token
-	// _, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-	// if err != nil {
-	// 	_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
-	// 	if err != nil {
-	// 		var respn model.Response
-	// 		respn.Status = "Error: Token Tidak Valid"
-	// 		respn.Info = at.GetSecretFromHeader(req)
-	// 		respn.Location = "Decode Token Error"
-	// 		respn.Response = err.Error()
-	// 		at.WriteJSON(respw, http.StatusForbidden, respn)
-	// 		return
-	// 	}
-	// }
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
 
 	// Ambil ID menu dari query parameter
 	idMenu := req.URL.Query().Get("id_menu")
