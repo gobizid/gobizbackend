@@ -49,15 +49,7 @@ func CreateDiskon(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tokoForDiskon := model.Toko{
-		ID:       docToko.ID,
-		NamaToko: docToko.NamaToko,
-		Category: docToko.Category,
-		User:     docToko.User,
-	}
-
 	diskonInput := model.Diskon{
-		Toko:            []model.Toko{tokoForDiskon},
 		JenisDiskon:     datadiskon.JenisDiskon,
 		NilaiDiskon:     datadiskon.NilaiDiskon,
 		TanggalMulai:    datadiskon.TanggalMulai,
