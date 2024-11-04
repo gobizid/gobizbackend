@@ -163,6 +163,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.AddDiskonToMenu(w, r)
 	case method == "PUT" && path == "/menu/update":
 		controller.UpdateDataMenu(w, r)
+	case method == "DELETE" && path == "/menu/delete":
+		controller.DeleteDataMenu(w, r)
 
 		// toko
 	case method == "POST" && path == "/create/toko":

@@ -364,7 +364,6 @@ func GetDataMenuByCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Filter pencarian menggunakan nama kategori di subdokumen `category`
 	filter := bson.M{"category.name_category": category}
 	menus, err := atdb.GetAllDoc[[]model.Menu](config.Mongoconn, "menu", filter)
 	if err != nil {
@@ -571,6 +570,57 @@ func UpdateDataMenu(respw http.ResponseWriter, req *http.Request) {
 				"id":            existingCategory.ID.Hex(),
 				"name_category": existingCategory.CategoryName,
 			},
+		},
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func DeleteDataMenu(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	menuId := req.URL.Query().Get("menuId")
+	if menuId == "" {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(menuId)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID Menu tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	filter := bson.M{"_id": objectID}
+	deleteData, err := atdb.DeleteOneDoc(config.Mongoconn, "menu", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus data menu"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu berhasil dihapus",
+		"data": map[string]interface{}{
+			"user":    payload.Id,
+			"menu_id": objectID.Hex(),
+			"deleted": deleteData.DeletedCount,
 		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
