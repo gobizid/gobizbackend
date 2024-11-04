@@ -157,6 +157,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.InsertDataMenu(w, r)
 	case method == "GET" && path == "/menu":
 		controller.GetAllMenu(w, r)
+	case method == "GET" && path == "/menu-id":
+		controller.GetMenuById(w, r)
 	case method == "GET" && path == "/menu/category":
 		controller.GetAllCategory(w, r)
 	case method == "POST" && path == "/menu/diskon":
