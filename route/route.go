@@ -161,6 +161,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetAllCategory(w, r)
 	case method == "POST" && path == "/menu/diskon":
 		controller.AddDiskonToMenu(w, r)
+	case method == "PUT" && path == "/update/menu/diskon":
+		controller.UpdateDiskonInMenu(w, r)
 	case method == "PUT" && path == "/menu/update":
 		controller.UpdateDataMenu(w, r)
 	case method == "DELETE" && path == "/menu/delete":
