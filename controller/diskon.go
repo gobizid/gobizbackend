@@ -115,7 +115,6 @@ func GetAllDiskon(respw http.ResponseWriter, req *http.Request) {
 	response := map[string]interface{}{
 		"Status":           "success",
 		"message":          "Diskon berhasil ditemukan",
-		"toko":             diskon.Toko,
 		"jenis_diskon":     diskon.JenisDiskon,
 		"nilai_diskon":     diskon.NilaiDiskon,
 		"tanggal_mulai":    diskon.TanggalMulai,
