@@ -701,7 +701,6 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 		},
 	}
 
-
 	_, err = config.Mongoconn.Collection("menu").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		var respn model.Response
@@ -718,7 +717,48 @@ func UpdateDiskonInMenu(respw http.ResponseWriter, req *http.Request) {
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
-
 func GetMenuById(respw http.ResponseWriter, req *http.Request) {
+	menuID := req.URL.Query().Get("id")
+	if menuID == "" {
+		var respn model.Response
+		respn.Status = "Error: ID menu tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
+	objectID, err := primitive.ObjectIDFromHex(menuID)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: ID menu tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	filter := bson.M{"_id": objectID}
+	dataMenu, err := atdb.GetOneDoc[model.Menu](config.Mongoconn, "menu", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	data := model.Menu{
+		ID:       dataMenu.ID,
+		TokoID:   dataMenu.TokoID,
+		Name:     dataMenu.Name,
+		Price:    dataMenu.Price,
+		Category: dataMenu.Category,
+		Diskon:   dataMenu.Diskon,
+		Rating:   dataMenu.Rating,
+		Sold:     dataMenu.Sold,
+		Image:    dataMenu.Image,
+	}
+
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Menu ditemukan",
+		"data":    data,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
 }
