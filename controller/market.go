@@ -334,9 +334,7 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
-	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
-
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 		if err != nil {
@@ -350,7 +348,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Ambil ID toko dari query parameter
 	tokoID := req.URL.Query().Get("id")
 	if tokoID == "" {
 		var respn model.Response
@@ -359,7 +356,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Konversi tokoID dari string ke ObjectID MongoDB
 	objectID, err := primitive.ObjectIDFromHex(tokoID)
 	if err != nil {
 		var respn model.Response
@@ -368,7 +364,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Ambil data toko dari database
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
 	err = config.Mongoconn.Collection("toko").FindOne(context.TODO(), filter).Decode(&existingToko)
@@ -379,7 +374,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cek apakah user adalah pemilik toko
 	if existingToko.User[0].PhoneNumber != payload.Id {
 		var respn model.Response
 		respn.Status = "Error: User tidak memiliki hak akses"
@@ -387,7 +381,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parsing form data
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -397,7 +390,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Validasi gambar toko (opsional)
 	var gambarTokoURL string
 	file, header, err := req.FormFile("tokoImage")
 	if err == nil {
@@ -410,7 +402,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
-		// Upload gambar ke GitHub
 		content, _, err := ghupload.GithubUpload(config.GHAccessToken, "Rolly Maulana Awangga", "awangga@gmail.com", fileContent, "gobizid", "img", "tokoImages/"+hashedFileName, true)
 		if err != nil {
 			var respn model.Response
@@ -422,7 +413,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		gambarTokoURL = *content.Content.HTMLURL
 	}
 
-	// Validasi dan Ambil Data dari Form
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
 	category := req.FormValue("category")
@@ -431,8 +421,10 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	city := req.FormValue("alamat.city")
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
+	latitudeStr := req.FormValue("latitude")
+	longitudeStr := req.FormValue("longitude")
+	openingHours := req.FormValue("opening_hours")
 
-	// Validasi slug tidak mengandung spasi
 	if strings.Contains(slug, " ") {
 		var respn model.Response
 		respn.Status = "Error: Slug tidak boleh mengandung spasi. Gunakan format 'nama-toko'."
@@ -440,7 +432,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Validasi kategori jika ada
 	if category != "" {
 		objectCategoryID, err := primitive.ObjectIDFromHex(category)
 		if err != nil {
@@ -459,18 +450,24 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Validasi nama toko unik
-	if namaToko != "" && namaToko != existingToko.NamaToko {
-		docTokoNama, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", primitive.M{"nama_toko": namaToko})
-		if err == nil && docTokoNama.ID != primitive.NilObjectID {
-			var respn model.Response
-			respn.Status = "Error: Nama Toko sudah digunakan"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
+	openCloseTimes := strings.Split(openingHours, " - ")
+
+	var location []map[string]interface{}
+	if latitudeStr != "" && longitudeStr != "" {
+		latitude, _ := strconv.ParseFloat(latitudeStr, 64)
+		longitude, _ := strconv.ParseFloat(longitudeStr, 64)
+		location = []map[string]interface{}{
+			{
+				"type":       "Feature",
+				"properties": map[string]interface{}{},
+				"geometry": map[string]interface{}{
+					"type":        "Point",
+					"coordinates": []float64{longitude, latitude},
+				},
+			},
 		}
 	}
 
-	// Update Data
 	updateData := bson.M{}
 	if namaToko != "" {
 		updateData["nama_toko"] = namaToko
@@ -499,6 +496,13 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	if gambarTokoURL != "" {
 		updateData["gambar_toko"] = gambarTokoURL
 	}
+	if len(location) > 0 {
+		updateData["location"] = location
+	}
+	if len(openCloseTimes) == 2 {
+		updateData["opening_hours.opening"] = openCloseTimes[0]
+		updateData["opening_hours.close"] = openCloseTimes[1]
+	}
 
 	update := bson.M{"$set": updateData}
 	_, err = config.Mongoconn.Collection("toko").UpdateOne(context.TODO(), filter, update)
@@ -510,11 +514,34 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Kirim response sukses
+	var filteredUsers []map[string]interface{}
+	for _, user := range existingToko.User {
+		filteredUsers = append(filteredUsers, map[string]interface{}{
+			"name":        user.Name,
+			"phonenumber": user.PhoneNumber,
+			"email":       user.Email,
+		})
+	}
+
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
-		"data":    updateData,
+		"data": map[string]interface{}{
+			"nama_toko":     updateData["nama_toko"],
+			"slug":          updateData["slug"],
+			"category":      updateData["category"],
+			"location":      updateData["location"],
+			"opening_hours": updateData["opening_hours"],
+			"alamat": map[string]interface{}{
+				"street":      updateData["alamat.street"],
+				"province":    updateData["alamat.province"],
+				"city":        updateData["alamat.city"],
+				"description": updateData["alamat.description"],
+				"postal_code": updateData["alamat.postal_code"],
+			},
+			"gambar_toko": updateData["gambar_toko"],
+			"user":        filteredUsers,
+		},
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
