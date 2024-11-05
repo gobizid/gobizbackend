@@ -88,7 +88,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	latitudeStr := req.FormValue("latitude")
 	longtitudeStr := req.FormValue("longtitude")
 	descriptionMarket := req.FormValue("description")
-	rating := req.FormValue("rating")
+	ratingStr := req.FormValue("rating")
 	openingHours := req.FormValue("opening_hours")
 	street := req.FormValue("alamat.street")
 	province := req.FormValue("alamat.province")
@@ -111,6 +111,15 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		var respn model.Response
 		respn.Status = "Error: Longitude tidak valid"
 		respn.Response = "Longitude harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	rating, err := strconv.ParseFloat(ratingStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Rating tidak valid"
+		respn.Response = "Rating harus berupa angka desimal"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
