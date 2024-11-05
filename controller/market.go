@@ -19,7 +19,6 @@ import (
 )
 
 func CreateToko(respw http.ResponseWriter, req *http.Request) {
-	// Decode token and get user information
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 
 	if err != nil {
@@ -35,6 +34,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
+
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -61,8 +61,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):] // Add file extension
-
+	hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
 	GitHubAccessToken := config.GHAccessToken
 	GitHubAuthorName := "Rolly Maulana Awangga"
 	GitHubAuthorEmail := "awangga@gmail.com"
@@ -96,7 +95,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 
-	// Konversi latitude dan longitude ke float64
 	latitude, err := strconv.ParseFloat(latitudeStr, 64)
 	if err != nil {
 		var respn model.Response
@@ -120,6 +118,15 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		var respn model.Response
 		respn.Status = "Error: Rating tidak valid"
 		respn.Response = "Rating harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	openCloseTimes := strings.Split(openingHours, " - ")
+	if len(openCloseTimes) != 2 {
+		var respn model.Response
+		respn.Status = "Error: Format waktu buka tidak valid"
+		respn.Response = "Gunakan format '08:00 - 17:00'"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
@@ -157,12 +164,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Validasi format slug, jika mengandung spasi maka ubah spasi menjadi "-"
-	// if strings.Contains(slug, " ") {
-	// 	slug = strings.ReplaceAll(slug, " ", "-")
-	// }
-
-	// Validasi slug tidak mengandung spasi
 	if strings.Contains(slug, " ") {
 		var respn model.Response
 		respn.Status = "Error: Slug tidak boleh mengandung spasi. Gunakan format 'nama-toko'."
@@ -178,7 +179,6 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Fetch user document
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": payload.Id})
 	if err != nil {
 		var respn model.Response
@@ -189,15 +189,26 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	tokoInput := model.Toko{
-		NamaToko:     namaToko,
-		Slug:         slug,
-		Category:     categoryDoc,
-		Latitude:     latitude,
-		Longtitude:   longtitude,
-		GambarToko:   gambarTokoURL,
-		Description:  descriptionMarket,
-		Rating:       rating,
-		OpeningHours: openingHours,
+		NamaToko: namaToko,
+		Slug:     slug,
+		Category: categoryDoc,
+		Location: []model.GeoJSONFeature{
+			{
+				Type:       "Feature",
+				Properties: map[string]string{},
+				Geometry: model.GeoJSONGeometry{
+					Type:        "Point",
+					Coordinates: []float64{longtitude, latitude},
+				},
+			},
+		},
+		GambarToko:  gambarTokoURL,
+		Description: descriptionMarket,
+		Rating:      rating,
+		OpeningHours: model.OpeningHours{
+			Opening: openCloseTimes[0],
+			Close:   openCloseTimes[1],
+		},
 		Alamat: model.Address{
 			Street:      street,
 			Province:    province,
@@ -264,17 +275,32 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 	var allMarkets []map[string]interface{}
 
 	for _, toko := range tokos {
+		location := []map[string]interface{}{
+			{
+				"type":       "Feature",
+				"properties": map[string]interface{}{},
+				"geometry": map[string]interface{}{
+					"type":        "Point",
+					"coordinates": []float64{toko.Location[0].Geometry.Coordinates[0], toko.Location[0].Geometry.Coordinates[1]},
+				},
+			},
+		}
+
+		openingHours := map[string]string{
+			"opening": toko.OpeningHours.Opening,
+			"close":   toko.OpeningHours.Close,
+		}
+
 		allMarkets = append(allMarkets, map[string]interface{}{
-			"id":          toko.ID.Hex(),
-			"nama_toko":   toko.NamaToko,
-			"slug":        toko.Slug,
-			"category":    toko.Category,
-			"latitude":    toko.Latitude,
-			"longtitude":    toko.Longtitude,
-			"description": toko.Description,
-			"rating":      toko.Rating,
-			"opening_hours": toko.OpeningHours,
-			"gambar_toko": toko.GambarToko,
+			"id":            toko.ID.Hex(),
+			"nama_toko":     toko.NamaToko,
+			"slug":          toko.Slug,
+			"category":      toko.Category.CategoryName,
+			"location":      location,
+			"description":   toko.Description,
+			"rating":        toko.Rating,
+			"opening_hours": openingHours,
+			"gambar_toko":   toko.GambarToko,
 			"alamat": map[string]interface{}{
 				"street":      toko.Alamat.Street,
 				"province":    toko.Alamat.Province,

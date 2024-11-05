@@ -23,15 +23,29 @@ type Toko struct {
 	NamaToko     string             `bson:"nama_toko" json:"nama_toko"`
 	Slug         string             `bson:"slug" json:"slug"`
 	Category     Category           `bson:"category" json:"category"`
-	Latitude     float64            `bson:"latitude" json:"latitude"`
-	Longtitude   float64            `bson:"longtitude" json:"longtitude"`
+	Location     []GeoJSONFeature   `bson:"location" json:"location"`
 	GambarToko   string             `bson:"gambar_toko" json:"gambar_toko"`
 	Description  string             `bson:"description" json:"description"`
-	Rating       float64             `bson:"rating" json:"rating"`
-	OpeningHours string             `bson:"opening_hours" json:"opening_hours"`
+	Rating       float64            `bson:"rating" json:"rating"`
+	OpeningHours OpeningHours       `bson:"opening_hours" json:"opening_hours"`
 	Alamat       Address            `bson:"alamat" json:"alamat"`
 	User         []Userdomyikado    `bson:"user" json:"user"`
-	// Menu       []Menu             `bson:"menu" json:"menu"`
+}
+
+type GeoJSONFeature struct {
+	Type       string            `bson:"type" json:"type"`
+	Properties map[string]string `bson:"properties" json:"properties"`
+	Geometry   GeoJSONGeometry   `bson:"geometry" json:"geometry"`
+}
+
+type GeoJSONGeometry struct {
+	Type        string    `bson:"type" json:"type"`
+	Coordinates []float64 `bson:"coordinates" json:"coordinates"`
+}
+
+type OpeningHours struct {
+	Opening string `bson:"opening" json:"opening"`
+	Close   string `bson:"close" json:"close"`
 }
 
 type Address struct {
