@@ -269,6 +269,11 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 			"nama_toko":   toko.NamaToko,
 			"slug":        toko.Slug,
 			"category":    toko.Category,
+			"latitude":    toko.Latitude,
+			"longtitude":    toko.Longtitude,
+			"description": toko.Description,
+			"rating":      toko.Rating,
+			"opening_hours": toko.OpeningHours,
 			"gambar_toko": toko.GambarToko,
 			"alamat": map[string]interface{}{
 				"street":      toko.Alamat.Street,
