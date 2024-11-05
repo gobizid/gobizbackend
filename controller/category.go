@@ -131,7 +131,6 @@ func GetCategoryByID(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
-	// Ambil token dari header
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 
 	if err != nil {
@@ -174,11 +173,20 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	namaCategory := req.FormValue("name_category")
+	var requestBody struct {
+		NameCategory string `json:"name_category"`
+	}
+	err = json.NewDecoder(req.Body).Decode(&requestBody)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal membaca data JSON"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
-	updateData := bson.M{"name_category": namaCategory}
-	if namaCategory != "" {
-		updateData["name_category"] = namaCategory
+	updateData := bson.M{}
+	if requestBody.NameCategory != "" {
+		updateData["name_category"] = requestBody.NameCategory
 	}
 
 	update := bson.M{"$set": updateData}
