@@ -19,18 +19,18 @@ type Menu struct {
 }
 
 type Toko struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	NamaToko    string             `bson:"nama_toko" json:"nama_toko"`
-	Slug        string             `bson:"slug" json:"slug"`
-	Category    Category           `bson:"category" json:"category"`
-	Latitude    string             `bson:"latitude" json:"latitude"`
-	Longtitude  string             `bson:"longtitude" json:"longtitude"`
-	GambarToko  string             `bson:"gambar_toko" json:"gambar_toko"`
-	Description string             `bson:"description" json:"description"`
-	Rating      string             `bson:"rating" json:"rating"`
-	OpeningHours      string             `bson:"rating" json:"rating"`
-	Alamat      Address            `bson:"alamat" json:"alamat"`
-	User        []Userdomyikado    `bson:"user" json:"user"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	NamaToko     string             `bson:"nama_toko" json:"nama_toko"`
+	Slug         string             `bson:"slug" json:"slug"`
+	Category     Category           `bson:"category" json:"category"`
+	Latitude     float64            `bson:"latitude" json:"latitude"`
+	Longtitude   float64            `bson:"longtitude" json:"longtitude"`
+	GambarToko   string             `bson:"gambar_toko" json:"gambar_toko"`
+	Description  string             `bson:"description" json:"description"`
+	Rating       string             `bson:"rating" json:"rating"`
+	OpeningHours string             `bson:"opening_hours" json:"opening_hours"`
+	Alamat       Address            `bson:"alamat" json:"alamat"`
+	User         []Userdomyikado    `bson:"user" json:"user"`
 	// Menu       []Menu             `bson:"menu" json:"menu"`
 }
 
