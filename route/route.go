@@ -173,6 +173,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.DeleteDataMenu(w, r)
 
 		// toko
+	case method == "GET" && path == "/toko":
+		controller.GetAllMarket(w, r)
 	case method == "POST" && path == "/create/toko":
 		controller.CreateToko(w, r)
 	case method == "PUT" && path == "/update/toko":
