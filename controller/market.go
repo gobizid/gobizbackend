@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,11 +85,35 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	namaToko := req.FormValue("nama_toko")
 	slug := req.FormValue("slug")
 	categoryID := req.FormValue("category_id")
+	latitudeStr := req.FormValue("latitude")
+	longtitudeStr := req.FormValue("longtitude")
+	descriptionMarket := req.FormValue("description")
+	rating := req.FormValue("rating")
+	openingHours := req.FormValue("opening_hours")
 	street := req.FormValue("alamat.street")
 	province := req.FormValue("alamat.province")
 	city := req.FormValue("alamat.city")
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
+
+	// Konversi latitude dan longitude ke float64
+	latitude, err := strconv.ParseFloat(latitudeStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Latitude tidak valid"
+		respn.Response = "Latitude harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	longtitude, err := strconv.ParseFloat(longtitudeStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Longitude tidak valid"
+		respn.Response = "Longitude harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
 	objectCategoryID, err := primitive.ObjectIDFromHex(categoryID)
 	if err != nil {
@@ -155,10 +180,15 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	tokoInput := model.Toko{
-		NamaToko:   namaToko,
-		Slug:       slug,
-		Category:   categoryDoc,
-		GambarToko: gambarTokoURL,
+		NamaToko:     namaToko,
+		Slug:         slug,
+		Category:     categoryDoc,
+		Latitude:     latitude,
+		Longtitude:   longtitude,
+		GambarToko:   gambarTokoURL,
+		Description:  descriptionMarket,
+		Rating:       rating,
+		OpeningHours: openingHours,
 		Alamat: model.Address{
 			Street:      street,
 			Province:    province,

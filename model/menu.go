@@ -27,7 +27,7 @@ type Toko struct {
 	Longtitude   float64            `bson:"longtitude" json:"longtitude"`
 	GambarToko   string             `bson:"gambar_toko" json:"gambar_toko"`
 	Description  string             `bson:"description" json:"description"`
-	Rating       string             `bson:"rating" json:"rating"`
+	Rating       float64             `bson:"rating" json:"rating"`
 	OpeningHours string             `bson:"opening_hours" json:"opening_hours"`
 	Alamat       Address            `bson:"alamat" json:"alamat"`
 	User         []Userdomyikado    `bson:"user" json:"user"`
