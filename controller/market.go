@@ -662,7 +662,6 @@ func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
-	// Tambah validasi akses token
 	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
 		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
@@ -675,7 +674,6 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Ambil parameter slug dari query params
 	slug := req.URL.Query().Get("slug")
 	if slug == "" {
 		var respn model.Response
@@ -685,7 +683,6 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cari toko berdasarkan slug di koleksi toko
 	var toko model.Toko
 	err = config.Mongoconn.Collection("toko").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
 	if err != nil {
@@ -696,7 +693,6 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Ambil semua menu yang terkait dengan ID toko dari koleksi menu
 	var menus []model.Menu
 	cursor, err := config.Mongoconn.Collection("menu").Find(req.Context(), bson.M{"toko": toko.ID})
 	if err != nil {
@@ -715,17 +711,28 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
+	alamat := map[string]interface{}{
+		"street":      toko.Alamat.Street,
+		"province":    toko.Alamat.Province,
+		"city":        toko.Alamat.City,
+		"description": toko.Alamat.Description,
+		"postal_code": toko.Alamat.PostalCode,
+	}
+	owner := map[string]interface{}{
+		"name":        toko.User[0].Name,
+		"phonenumber": toko.User[0].PhoneNumber,
+		"email":       toko.User[0].Email,
+	}
 
-	// Jika toko ditemukan, kembalikan data menu toko tersebut
 	response := map[string]interface{}{
 		"status":    "success",
 		"message":   "Menu berhasil diambil",
 		"nama_toko": toko.NamaToko,
 		"slug":      toko.Slug,
-		"category":  toko.Category,
-		"alamat":    toko.Alamat,
-		"owner":     toko.User,
-		"data":      menus, // Menampilkan daftar menu yang diambil
+		"category":  toko.Category.CategoryName,
+		"alamat":    alamat,
+		"owner":     owner,
+		"data":      menus,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
