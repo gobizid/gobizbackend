@@ -230,6 +230,15 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	var filteredUsers []map[string]interface{}
+	for _, user := range tokoInput.User {
+		filteredUsers = append(filteredUsers, map[string]interface{}{
+			"name":        user.Name,
+			"phonenumber": user.PhoneNumber,
+			"email":       user.Email,
+		})
+	}
+
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil dibuat",
@@ -248,7 +257,7 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 				"updatedAt":   tokoInput.Alamat.UpdatedAt,
 			},
 			"gambar_toko": gambarTokoURL,
-			"user":        tokoInput.User,
+			"user":        filteredUsers,
 		},
 	}
 
@@ -291,6 +300,15 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 			"close":   toko.OpeningHours.Close,
 		}
 
+		var filteredUsers []map[string]interface{}
+		for _, user := range toko.User {
+			filteredUsers = append(filteredUsers, map[string]interface{}{
+				"name":        user.Name,
+				"phonenumber": user.PhoneNumber,
+				"email":       user.Email,
+			})
+		}
+
 		allMarkets = append(allMarkets, map[string]interface{}{
 			"id":            toko.ID.Hex(),
 			"nama_toko":     toko.NamaToko,
@@ -308,7 +326,7 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 				"description": toko.Alamat.Description,
 				"postal_code": toko.Alamat.PostalCode,
 			},
-			"user": toko.User,
+			"user": filteredUsers,
 		})
 	}
 
