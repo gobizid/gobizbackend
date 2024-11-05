@@ -572,13 +572,47 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data := model.Toko{
-		ID:         dataToko.ID,
-		NamaToko:   dataToko.NamaToko,
-		Slug:       dataToko.Slug,
-		Category:   dataToko.Category,
-		Alamat:     dataToko.Alamat,
-		GambarToko: dataToko.GambarToko,
+	location := []map[string]interface{}{
+		{
+			"type":       "Feature",
+			"properties": map[string]interface{}{},
+			"geometry": map[string]interface{}{
+				"type":        "Point",
+				"coordinates": []float64{dataToko.Location[0].Geometry.Coordinates[0], dataToko.Location[0].Geometry.Coordinates[1]},
+			},
+		},
+	}
+
+	openingHours := map[string]string{
+		"opening": dataToko.OpeningHours.Opening,
+		"close":   dataToko.OpeningHours.Close,
+	}
+
+	var filteredUsers []map[string]interface{}
+	for _, user := range dataToko.User {
+		filteredUsers = append(filteredUsers, map[string]interface{}{
+			"name":        user.Name,
+			"phonenumber": user.PhoneNumber,
+			"email":       user.Email,
+		})
+	}
+
+	data := map[string]interface{}{
+		"id":            dataToko.ID.Hex(),
+		"nama_toko":     dataToko.NamaToko,
+		"slug":          dataToko.Slug,
+		"category":      dataToko.Category,
+		"location":      location,
+		"opening_hours": openingHours,
+		"alamat": map[string]interface{}{
+			"street":      dataToko.Alamat.Street,
+			"province":    dataToko.Alamat.Province,
+			"city":        dataToko.Alamat.City,
+			"description": dataToko.Alamat.Description,
+			"postal_code": dataToko.Alamat.PostalCode,
+		},
+		"gambar_toko": dataToko.GambarToko,
+		"user":        filteredUsers,
 	}
 
 	response := map[string]interface{}{
