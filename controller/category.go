@@ -244,43 +244,29 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Coba ambil data Category dari database berdasarkan ID
-	var dataMenuCategory model.Toko
+	// Hapus data Category berdasarkan ID
 	filter := bson.M{"_id": objectID}
-	dataDelete, err := atdb.DeleteOneDoc(config.Mongoconn, "category", filter)
+	deleteResult, err := config.Mongoconn.Collection("category").DeleteOne(context.TODO(), filter)
 	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus Category"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	if deleteResult.DeletedCount == 0 {
 		var respn model.Response
 		respn.Status = "Error: Category tidak ditemukan"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
-	update := bson.M{
-		"$set": bson.M{
-			"category": dataMenuCategory.Category,
-		},
-	}
-
-	result, err := atdb.DeleteOneDoc(config.Mongoconn, "menu", update)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Gagal menghapus Category"
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	if result.DeletedCount == 0 {
-		var respn model.Response
-		respn.Status = "Error: Toko tidak ditemukan"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
 	response := map[string]interface{}{
 		"status":  "success",
-		"message": "Toko berhasil dihapus",
+		"message": "Category berhasil dihapus",
 		"user":    payload.Alias,
-		"data":    dataDelete,
+		"data":    deleteResult,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
