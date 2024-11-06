@@ -65,7 +65,7 @@ func GetAllCategory(respw http.ResponseWriter, req *http.Request) {
 	data, err := atdb.GetAllDoc[[]model.Category](config.Mongoconn, "category", primitive.M{})
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Data menu tidak ditemukan"
+		respn.Status = "Error: Data kategori tidak ditemukan"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
@@ -73,23 +73,18 @@ func GetAllCategory(respw http.ResponseWriter, req *http.Request) {
 
 	if len(data) == 0 {
 		var respn model.Response
-		respn.Status = "Error: Data menu kosong"
+		respn.Status = "Error: Data kategori kosong"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
-	categoryMap := make(map[string]primitive.ObjectID)
-
-	for _, category := range data {
-		categoryMap[category.CategoryName] = category.ID
-	}
-
+	// Format hasil sebagai slice of map dengan ID, name_category, dan icon untuk setiap kategori
 	var categories []map[string]interface{}
-
-	for category, id := range categoryMap {
+	for _, category := range data {
 		categories = append(categories, map[string]interface{}{
-			"id":   id,
-			"name": category,
+			"id":            category.ID,
+			"name_category": category.CategoryName,
+			"icon":          category.Icon,
 		})
 	}
 
