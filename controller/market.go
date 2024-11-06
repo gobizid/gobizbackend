@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -551,6 +552,7 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 	dataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
+		respn.Response = fmt.Sprintf("data filter: %v, error: %s", filter, err.Error())
 		respn.Status = "Error: Toko tidak ditemukan"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
