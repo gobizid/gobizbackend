@@ -41,6 +41,7 @@ func CreateCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	newCategory := model.Category{
+		Icon: category.Icon,
 		CategoryName: category.CategoryName,
 	}
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "category", newCategory)
