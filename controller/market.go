@@ -587,7 +587,7 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		"id":            dataToko.ID.Hex(),
 		"nama_toko":     dataToko.NamaToko,
 		"slug":          dataToko.Slug,
-		"category":      dataToko.Category,
+		"category":      dataToko.Category.CategoryName,
 		"location":      location,
 		"opening_hours": openingHours,
 		"alamat": map[string]interface{}{
