@@ -62,6 +62,7 @@ type Address struct {
 
 type Category struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Icon         string             `bson:"icon" json:"icon"`
 	CategoryName string             `bson:"name_category" json:"name_category"`
 }
 
