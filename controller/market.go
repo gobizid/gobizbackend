@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -542,7 +543,11 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	log.Println("Converted ObjectID:", objectID.Hex())
 	filter := bson.M{"_id": objectID}
+	log.Printf("Using filter: %v\n", filter)
+
+	filter = bson.M{"_id": objectID}
 	dataToko, err := atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
