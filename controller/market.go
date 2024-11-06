@@ -374,13 +374,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if existingToko.User[0].PhoneNumber != payload.Id {
-		var respn model.Response
-		respn.Status = "Error: User tidak memiliki hak akses"
-		at.WriteJSON(respw, http.StatusForbidden, respn)
-		return
-	}
-
 	err = req.ParseMultipartForm(10 << 20)
 	if err != nil {
 		var respn model.Response
@@ -422,49 +415,35 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	description := req.FormValue("alamat.description")
 	postalCode := req.FormValue("alamat.postal_code")
 	latitudeStr := req.FormValue("latitude")
-	longitudeStr := req.FormValue("longitude")
+	longitudeStr := req.FormValue("longtitude")
 	openingHours := req.FormValue("opening_hours")
-
-	if strings.Contains(slug, " ") {
-		var respn model.Response
-		respn.Status = "Error: Slug tidak boleh mengandung spasi. Gunakan format 'nama-toko'."
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	if category != "" {
-		objectCategoryID, err := primitive.ObjectIDFromHex(category)
-		if err != nil {
-			var respn model.Response
-			respn.Status = "Error: ID Kategori tidak valid"
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
-		}
-		categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
-		if err != nil || categoryDoc.ID == primitive.NilObjectID {
-			var respn model.Response
-			respn.Status = "Error: Kategori tidak ditemukan"
-			respn.Response = "ID yang dicari: " + category
-			at.WriteJSON(respw, http.StatusBadRequest, respn)
-			return
-		}
-	}
-
-	openCloseTimes := strings.Split(openingHours, " - ")
 
 	var location []map[string]interface{}
 	if latitudeStr != "" && longitudeStr != "" {
-		latitude, _ := strconv.ParseFloat(latitudeStr, 64)
-		longitude, _ := strconv.ParseFloat(longitudeStr, 64)
-		location = []map[string]interface{}{
-			{
-				"type":       "Feature",
-				"properties": map[string]interface{}{},
-				"geometry": map[string]interface{}{
-					"type":        "Point",
-					"coordinates": []float64{longitude, latitude},
+		latitude, latErr := strconv.ParseFloat(latitudeStr, 64)
+		longitude, longErr := strconv.ParseFloat(longitudeStr, 64)
+		if latErr == nil && longErr == nil {
+			location = []map[string]interface{}{
+				{
+					"type":       "Feature",
+					"properties": map[string]interface{}{},
+					"geometry": map[string]interface{}{
+						"type":        "Point",
+						"coordinates": []float64{longitude, latitude},
+					},
 				},
-			},
+			}
+		}
+	}
+
+	var openCloseMap map[string]string
+	if openingHours != "" {
+		openCloseTimes := strings.Split(openingHours, " - ")
+		if len(openCloseTimes) == 2 {
+			openCloseMap = map[string]string{
+				"opening": openCloseTimes[0],
+				"close":   openCloseTimes[1],
+			}
 		}
 	}
 
@@ -499,9 +478,8 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	if len(location) > 0 {
 		updateData["location"] = location
 	}
-	if len(openCloseTimes) == 2 {
-		updateData["opening_hours.opening"] = openCloseTimes[0]
-		updateData["opening_hours.close"] = openCloseTimes[1]
+	if openCloseMap != nil {
+		updateData["opening_hours"] = openCloseMap
 	}
 
 	update := bson.M{"$set": updateData}
@@ -527,6 +505,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
 		"data": map[string]interface{}{
+			"nama":          payload.Alias,
 			"nama_toko":     updateData["nama_toko"],
 			"slug":          updateData["slug"],
 			"category":      updateData["category"],
