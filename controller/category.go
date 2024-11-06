@@ -170,6 +170,7 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	var requestBody struct {
+		Icon string `json:"icon"`
 		NameCategory string `json:"name_category"`
 	}
 	err = json.NewDecoder(req.Body).Decode(&requestBody)
@@ -183,6 +184,9 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 	updateData := bson.M{}
 	if requestBody.NameCategory != "" {
 		updateData["name_category"] = requestBody.NameCategory
+	}
+	if requestBody.Icon != "" {
+		updateData["icon"] = requestBody.Icon
 	}
 
 	update := bson.M{"$set": updateData}
