@@ -449,6 +449,22 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	objectCategoryID, err := primitive.ObjectIDFromHex(category)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Kategori ID tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Kategori toko tidak ditemukan"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
 	updateData := bson.M{}
 	if namaToko != "" {
 		updateData["nama_toko"] = namaToko
@@ -457,7 +473,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		updateData["slug"] = slug
 	}
 	if category != "" {
-		updateData["category"] = category
+		updateData["category"] = categoryDoc
 	}
 	if street != "" {
 		updateData["alamat.street"] = street
