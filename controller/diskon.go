@@ -183,7 +183,7 @@ func UpdateDiskon(respw http.ResponseWriter, req *http.Request) {
 		"$set": existingDiskon,
 	}
 
-	_, err = config.Mongoconn.Collection("diskon").UpdateOne(req.Context(), diskonFilter, update)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "diskon", diskonFilter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Failed to update diskon"
@@ -250,7 +250,7 @@ func DeleteDiskon(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Hapus diskon dari database
-	_, err = config.Mongoconn.Collection("diskon").DeleteOne(req.Context(), diskonFilter)
+	_, err = atdb.DeleteOneDoc(config.Mongoconn, "diskon", diskonFilter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal menghapus diskon"

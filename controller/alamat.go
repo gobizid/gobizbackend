@@ -130,8 +130,7 @@ func UpdateAlamat(respw http.ResponseWriter, req *http.Request) {
 
 	// Cek apakah alamat yang akan di-update milik user yang sedang login
 	filter := bson.M{"_id": objectID, "user.phonenumber": docuser.PhoneNumber}
-	var existingAddress model.Address
-	err = config.Mongoconn.Collection("address").FindOne(context.TODO(), filter).Decode(&existingAddress)
+	_, err = atdb.GetOneDoc[model.Address](config.Mongoconn, "address", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Alamat tidak ditemukan atau Anda tidak memiliki hak akses"
@@ -150,7 +149,7 @@ func UpdateAlamat(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	update := bson.M{"$set": updateData}
-	_, err = config.Mongoconn.Collection("address").UpdateOne(context.TODO(), filter, update)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "address", filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate alamat"
@@ -214,7 +213,7 @@ func DeleteAlamat(respw http.ResponseWriter, req *http.Request) {
 
 	// Cek apakah alamat yang akan dihapus milik user yang sedang login
 	filter := bson.M{"_id": objectID, "user.phonenumber": docuser.PhoneNumber}
-	result, err := config.Mongoconn.Collection("address").DeleteOne(context.TODO(), filter)
+	result, err := atdb.DeleteOneDoc(config.Mongoconn, "address", filter)
 	if err != nil || result.DeletedCount == 0 {
 		var respn model.Response
 		respn.Status = "Error: Alamat tidak ditemukan atau Anda tidak memiliki hak akses"
@@ -380,7 +379,3 @@ func GetAllPostalCodes(respw http.ResponseWriter, req *http.Request) {
 
 	at.WriteJSON(respw, http.StatusOK, postalCodes)
 }
-
-
-
-
