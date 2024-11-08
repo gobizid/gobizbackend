@@ -368,7 +368,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("toko").FindOne(context.TODO(), filter).Decode(&existingToko)
+	_,err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -501,7 +501,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	update := bson.M{"$set": updateData}
-	_, err = config.Mongoconn.Collection("toko").UpdateOne(context.TODO(), filter, update)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "toko", filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate toko"
@@ -835,7 +835,8 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	var toko model.Toko
-	err = config.Mongoconn.Collection("toko").FindOne(req.Context(), bson.M{"slug": slug}).Decode(&toko)
+	filter := bson.M{"slug": slug}
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
