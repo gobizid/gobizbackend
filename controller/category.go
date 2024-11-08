@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -110,7 +109,7 @@ func GetCategoryByID(respw http.ResponseWriter, req *http.Request) {
 
 	var category model.Category
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("category").FindOne(context.TODO(), filter).Decode(&category)
+	_, err = atdb.GetOneDoc[model.Category](config.Mongoconn, "category", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Category tidak ditemukan"
@@ -159,9 +158,8 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var existingCategory model.Category
 	filter := bson.M{"_id": objectID}
-	err = config.Mongoconn.Collection("category").FindOne(context.TODO(), filter).Decode(&existingCategory)
+	_, err = atdb.GetOneDoc[model.Category](config.Mongoconn, "category", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Category tidak ditemukan"
@@ -190,7 +188,7 @@ func UpdateCategory(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	update := bson.M{"$set": updateData}
-	_, err = config.Mongoconn.Collection("category").UpdateOne(context.TODO(), filter, update)
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "category", filter, update)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate category"
@@ -246,7 +244,7 @@ func DeleteCategory(respw http.ResponseWriter, req *http.Request) {
 
 	// Hapus data Category berdasarkan ID
 	filter := bson.M{"_id": objectID}
-	deleteResult, err := config.Mongoconn.Collection("category").DeleteOne(context.TODO(), filter)
+	deleteResult, err := atdb.DeleteOneDoc(config.Mongoconn, "category", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal menghapus Category"
