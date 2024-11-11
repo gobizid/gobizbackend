@@ -368,7 +368,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
-	_,err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -805,7 +805,13 @@ func GetAllNamaToko(respw http.ResponseWriter, req *http.Request) {
 		allMarkets = append(allMarkets, map[string]interface{}{
 			"id":        toko.ID.Hex(),
 			"nama_toko": toko.NamaToko,
-			"user":      toko.User,
+			"user": func(users []model.Userdomyikado) []string {
+				var names []string
+				for _, user := range users {
+					names = append(names, user.Name)
+				}
+				return names
+			}(toko.User),
 		})
 	}
 
