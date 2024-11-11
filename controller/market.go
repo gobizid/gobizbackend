@@ -199,8 +199,10 @@ func CreateToko(respw http.ResponseWriter, req *http.Request) {
 				Type:       "Feature",
 				Properties: map[string]string{},
 				Geometry: model.GeoJSONGeometry{
-					Type:        "Point",
-					Coordinates: []float64{longtitude, latitude},
+					Type: "Point",
+					Coordinates: []model.Coordinates{
+						{Lat: latitude, Lon: longtitude},
+					},
 				},
 			},
 		},
@@ -291,8 +293,13 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 				"type":       "Feature",
 				"properties": map[string]interface{}{},
 				"geometry": map[string]interface{}{
-					"type":        "Point",
-					"coordinates": []float64{toko.Location[0].Geometry.Coordinates[0], toko.Location[0].Geometry.Coordinates[1]},
+					"type": "Point",
+					"coordinates": []map[string]float64{
+						{
+							"lat": toko.Location[0].Geometry.Coordinates[0].Lat,
+							"lon": toko.Location[0].Geometry.Coordinates[0].Lon,
+						},
+					},
 				},
 			},
 		}
@@ -579,8 +586,13 @@ func GetTokoByID(respw http.ResponseWriter, req *http.Request) {
 			"type":       "Feature",
 			"properties": map[string]interface{}{},
 			"geometry": map[string]interface{}{
-				"type":        "Point",
-				"coordinates": []float64{dataToko.Location[0].Geometry.Coordinates[0], dataToko.Location[0].Geometry.Coordinates[1]},
+				"type": "Point",
+				"coordinates": []map[string]float64{
+					{
+						"lat": dataToko.Location[0].Geometry.Coordinates[0].Lat,
+						"lon": dataToko.Location[0].Geometry.Coordinates[0].Lon,
+					},
+				},
 			},
 		},
 	}

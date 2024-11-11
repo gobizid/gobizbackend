@@ -39,8 +39,13 @@ type GeoJSONFeature struct {
 }
 
 type GeoJSONGeometry struct {
-	Type        string    `bson:"type" json:"type"`
-	Coordinates []float64 `bson:"coordinates" json:"coordinates"`
+	Type        string        `bson:"type" json:"type"`
+	Coordinates []Coordinates `bson:"coordinates" json:"coordinates"`
+}
+
+type Coordinates struct {
+	Lat float64 `bson:"lat" json:"lat"`
+	Lon float64 `bson:"lon" json:"lon"`
 }
 
 type OpeningHours struct {
