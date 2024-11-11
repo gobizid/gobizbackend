@@ -912,7 +912,6 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 	latitudeStr := req.URL.Query().Get("lat")
 	longitudeStr := req.URL.Query().Get("lon")
 
-	// Konversi latitude dan longitude dari string ke float64
 	latitude, err := strconv.ParseFloat(latitudeStr, 64)
 	if err != nil {
 		var respn model.Response
@@ -931,26 +930,25 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Radius dalam meter (5 meter) dikonversi ke radius dalam radian
-	radius := 5 / 6378000.0 // 6378000 adalah radius bumi dalam meter
+	// Radius dalam meter dikonversi ke radian
+	radius := 5.0 / 6378000.0
 
-	// Query geospasial untuk mencari toko dalam radius tertentu dari koordinat
+	// Log koordinat dan radius
+	fmt.Printf("Latitude: %f, Longitude: %f, Radius: %f\n", latitude, longitude, radius)
+
+	// Query geospasial
 	filter := bson.M{
-		"location": bson.M{
-			"geometry": bson.M{
-				"coordinates": bson.M{
-					"$geoWithin": bson.M{
-						"$centerSphere": []interface{}{
-							[]float64{longitude, latitude},
-							radius,
-						},
-					},
+		"location.geometry.coordinates": bson.M{
+			"$geoWithin": bson.M{
+				"$centerSphere": []interface{}{
+					[]float64{longitude, latitude},
+					radius,
 				},
 			},
 		},
 	}
 
-	// Ambil data toko dari database
+	// Ambil data dari database
 	var tokos []model.Toko
 	collection := config.Mongoconn.Collection("toko")
 	cursor, err := collection.Find(context.Background(), filter)
@@ -975,7 +973,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		tokos = append(tokos, toko)
 	}
 
-	// Cek apakah ada data toko yang ditemukan
+	// Jika tidak ada data yang ditemukan
 	if len(tokos) == 0 {
 		var respn model.Response
 		respn.Status = "Tidak ada toko dalam radius 5 meter"
@@ -983,6 +981,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Return toko yang ditemukan dalam bentuk JSON
+	// Return hasil sebagai JSON
 	at.WriteJSON(respw, http.StatusOK, tokos)
 }
+
