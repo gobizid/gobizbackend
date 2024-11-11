@@ -906,3 +906,80 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
 }
+
+func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
+	// Ambil parameter latitude dan longitude dari request
+	latitudeStr := req.URL.Query().Get("lat")
+	longitudeStr := req.URL.Query().Get("lon")
+
+	// Konversi latitude dan longitude dari string ke float64
+	latitude, err := strconv.ParseFloat(latitudeStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Latitude tidak valid"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	longitude, err := strconv.ParseFloat(longitudeStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Longitude tidak valid"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Radius dalam meter (5 meter) dikonversi ke radius dalam radian
+	radius := 5 / 6378000.0 // 6378000 adalah radius bumi dalam meter
+
+	// Query geospasial untuk mencari toko dalam radius tertentu dari koordinat
+	filter := bson.M{
+		"location": bson.M{
+			"$geoWithin": bson.M{
+				"$centerSphere": []interface{}{
+					[]float64{longitude, latitude},
+					radius,
+				},
+			},
+		},
+	}
+
+	// Ambil data toko dari database
+	var tokos []model.Toko
+	collection := config.Mongoconn.Collection("toko") // Ganti "db_name" sesuai database Anda
+	cursor, err := collection.Find(context.Background(), filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengambil data toko"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(context.Background()) {
+		var toko model.Toko
+		if err := cursor.Decode(&toko); err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal mendekode data toko"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+		tokos = append(tokos, toko)
+	}
+
+	// Cek apakah ada data toko yang ditemukan
+	if len(tokos) == 0 {
+		var respn model.Response
+		respn.Status = "Tidak ada toko dalam radius 5 meter"
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// Return toko yang ditemukan dalam bentuk JSON
+	at.WriteJSON(respw, http.StatusOK, tokos)
+}
+
