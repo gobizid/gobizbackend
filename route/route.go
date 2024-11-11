@@ -243,6 +243,10 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/market/slug":
 		controller.GetAllSlug(w, r)
 
+		// Radius
+	case method == "GET" && path == "/nearby-stores":
+		controller.GetNearbyToko(w, r)
+
 		// Personalization
 	case method == "POST" && path == "/create/personalization":
 		controller.CreatePersonalization(w, r)
