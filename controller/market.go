@@ -937,10 +937,14 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 	// Query geospasial untuk mencari toko dalam radius tertentu dari koordinat
 	filter := bson.M{
 		"location": bson.M{
-			"$geoWithin": bson.M{
-				"$centerSphere": []interface{}{
-					[]float64{longitude, latitude},
-					radius,
+			"geometry": bson.M{
+				"coordinates": bson.M{
+					"$geoWithin": bson.M{
+						"$centerSphere": []interface{}{
+							[]float64{longitude, latitude},
+							radius,
+						},
+					},
 				},
 			},
 		},
@@ -948,7 +952,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 
 	// Ambil data toko dari database
 	var tokos []model.Toko
-	collection := config.Mongoconn.Collection("toko") // Ganti "db_name" sesuai database Anda
+	collection := config.Mongoconn.Collection("toko")
 	cursor, err := collection.Find(context.Background(), filter)
 	if err != nil {
 		var respn model.Response
@@ -982,4 +986,3 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 	// Return toko yang ditemukan dalam bentuk JSON
 	at.WriteJSON(respw, http.StatusOK, tokos)
 }
-
