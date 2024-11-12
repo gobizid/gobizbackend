@@ -250,6 +250,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		// Personalization
 	case method == "POST" && path == "/create/personalization":
 		controller.CreatePersonalization(w, r)
+	case method == "GET" && path == "/get/personalization":
+		controller.GetPersonalization(w, r)
 		// order Dev
 	// case method == "POST" && path == "/order":
 	// 	controller.CreateOrder(w, r)
