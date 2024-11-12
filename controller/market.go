@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -908,41 +909,45 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
-	// Ambil parameter latitude dan longitude dari request
-	latitudeStr := req.URL.Query().Get("lat")
-	longitudeStr := req.URL.Query().Get("lon")
+	// Dekode body request untuk mengambil latitude, longitude, radius, dan unit
+	var requestData struct {
+		Latitude  float64 `json:"lat"`
+		Longitude float64 `json:"lon"`
+		Radius    float64 `json:"radius"` // Radius dalam meter atau kilometer
+		Unit      string  `json:"unit"`   // "m" untuk meter atau "km" untuk kilometer
+	}
 
-	latitude, err := strconv.ParseFloat(latitudeStr, 64)
+	err := json.NewDecoder(req.Body).Decode(&requestData)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Latitude tidak valid"
+		respn.Status = "Error: Gagal membaca body request"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
-	longitude, err := strconv.ParseFloat(longitudeStr, 64)
-	if err != nil {
+	// Pastikan unit radius adalah "m" atau "km"
+	var radiusInRadians float64
+	switch requestData.Unit {
+	case "m":
+		radiusInRadians = requestData.Radius / 6378000.0 // Mengonversi meter ke radian
+	case "km":
+		radiusInRadians = (requestData.Radius * 1000) / 6378000.0 // Mengonversi kilometer ke radian
+	default:
 		var respn model.Response
-		respn.Status = "Error: Longitude tidak valid"
-		respn.Response = err.Error()
+		respn.Status = "Error: Unit tidak valid"
+		respn.Response = "Gunakan 'm' untuk meter atau 'km' untuk kilometer"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
-	// Radius dalam meter dikonversi ke radian
-	radius := 5.0 / 6378000.0
-
-	// Log koordinat dan radius
-	fmt.Printf("Latitude: %f, Longitude: %f, Radius: %f\n", latitude, longitude, radius)
-
-	// Query geospasial
+	// Query geospasial untuk mencari toko di dalam radius
 	filter := bson.M{
 		"location.geometry.coordinates": bson.M{
 			"$geoWithin": bson.M{
 				"$centerSphere": []interface{}{
-					[]float64{longitude, latitude},
-					radius,
+					[]float64{requestData.Longitude, requestData.Latitude},
+					radiusInRadians,
 				},
 			},
 		},
@@ -973,15 +978,73 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		tokos = append(tokos, toko)
 	}
 
-	// Jika tidak ada data yang ditemukan
+	// Jika tidak ada toko yang ditemukan
 	if len(tokos) == 0 {
 		var respn model.Response
-		respn.Status = "Tidak ada toko dalam radius 5 meter"
+		respn.Status = "Tidak ada toko dalam radius yang ditentukan"
 		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
-	// Return hasil sebagai JSON
-	at.WriteJSON(respw, http.StatusOK, tokos)
-}
+	// Buat respons dengan toko yang ditemukan
+	var allMarkets []map[string]interface{}
+	for _, toko := range tokos {
+		location := []map[string]interface{}{
+			{
+				"type":       "Feature",
+				"properties": map[string]interface{}{},
+				"geometry": map[string]interface{}{
+					"type": "Point",
+					"coordinates": []map[string]float64{
+						{
+							"lat": toko.Location[0].Geometry.Coordinates[0].Lat,
+							"lon": toko.Location[0].Geometry.Coordinates[0].Lon,
+						},
+					},
+				},
+			},
+		}
 
+		openingHours := map[string]string{
+			"opening": toko.OpeningHours.Opening,
+			"close":   toko.OpeningHours.Close,
+		}
+
+		var filteredUsers []map[string]interface{}
+		for _, user := range toko.User {
+			filteredUsers = append(filteredUsers, map[string]interface{}{
+				"name":        user.Name,
+				"phonenumber": user.PhoneNumber,
+				"email":       user.Email,
+			})
+		}
+
+		allMarkets = append(allMarkets, map[string]interface{}{
+			"id":            toko.ID.Hex(),
+			"nama_toko":     toko.NamaToko,
+			"slug":          toko.Slug,
+			"category":      toko.Category.CategoryName,
+			"location":      location,
+			"description":   toko.Description,
+			"rating":        toko.Rating,
+			"opening_hours": openingHours,
+			"gambar_toko":   toko.GambarToko,
+			"alamat": map[string]interface{}{
+				"street":      toko.Alamat.Street,
+				"province":    toko.Alamat.Province,
+				"city":        toko.Alamat.City,
+				"description": toko.Alamat.Description,
+				"postal_code": toko.Alamat.PostalCode,
+			},
+			"user": filteredUsers,
+		})
+	}
+
+	// Kirim respons JSON dengan data toko yang ditemukan
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Toko dalam radius ditemukan",
+		"data":    allMarkets,
+	}
+	at.WriteJSON(respw, http.StatusOK, response)
+}
