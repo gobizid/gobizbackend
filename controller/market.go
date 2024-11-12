@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -909,30 +908,48 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
-	// Dekode body request untuk mengambil latitude, longitude, radius, dan unit
-	var requestData struct {
-		Latitude  float64 `json:"lat"`
-		Longitude float64 `json:"lon"`
-		Radius    float64 `json:"radius"` // Radius dalam meter atau kilometer
-		Unit      string  `json:"unit"`   // "m" untuk meter atau "km" untuk kilometer
-	}
+	// Ambil latitude, longitude, radius, dan unit dari query parameters
+	latStr := req.URL.Query().Get("lat")
+	lonStr := req.URL.Query().Get("lon")
+	radiusStr := req.URL.Query().Get("radius")
+	unit := req.URL.Query().Get("unit")
 
-	err := json.NewDecoder(req.Body).Decode(&requestData)
+	// Konversi latitude dan longitude ke float64
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
 		var respn model.Response
-		respn.Status = "Error: Gagal membaca body request"
-		respn.Response = err.Error()
+		respn.Status = "Error: Latitude tidak valid"
+		respn.Response = "Latitude harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	longitude, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Longitude tidak valid"
+		respn.Response = "Longitude harus berupa angka desimal"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	// Konversi radius ke float64
+	radius, err := strconv.ParseFloat(radiusStr, 64)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Radius tidak valid"
+		respn.Response = "Radius harus berupa angka"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
 	// Pastikan unit radius adalah "m" atau "km"
 	var radiusInRadians float64
-	switch requestData.Unit {
+	switch unit {
 	case "m":
-		radiusInRadians = requestData.Radius / 6378000.0 // Mengonversi meter ke radian
+		radiusInRadians = radius / 6378000.0 // Mengonversi meter ke radian
 	case "km":
-		radiusInRadians = (requestData.Radius * 1000) / 6378000.0 // Mengonversi kilometer ke radian
+		radiusInRadians = (radius * 1000) / 6378000.0 // Mengonversi kilometer ke radian
 	default:
 		var respn model.Response
 		respn.Status = "Error: Unit tidak valid"
@@ -946,7 +963,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		"location.geometry.coordinates": bson.M{
 			"$geoWithin": bson.M{
 				"$centerSphere": []interface{}{
-					[]float64{requestData.Longitude, requestData.Latitude},
+					[]float64{longitude, latitude},
 					radiusInRadians,
 				},
 			},
