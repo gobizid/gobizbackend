@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -113,8 +114,9 @@ func GetPersonalization(respw http.ResponseWriter, req *http.Request) {
 
 	// Cari data personalization berdasarkan pengguna yang login
 	var personalizations []model.Personalization
-	filter := primitive.M{"user.phonenumber": docuser.Phonenumber}
-	cursor, err := atdb.FindDocs(config.Mongoconn, "personalization", filter)
+	filter := primitive.M{"user.phonenumber": docuser.PhoneNumber}
+	collection := config.Mongoconn.Collection("personalization")
+	cursor, err := collection.Find(context.Background(), filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengambil data Personalization"
