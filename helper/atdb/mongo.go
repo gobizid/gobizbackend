@@ -216,3 +216,21 @@ func ReplaceOneDoc(db *mongo.Database, collection string, filter bson.M, doc int
 	}
 	return
 }
+
+// AggregateDoc menjalankan pipeline agregasi pada koleksi yang diberikan
+func AggregateDoc[T any](db *mongo.Database, collection string, pipeline mongo.Pipeline, result *T) error {
+	ctx := context.TODO()
+	cursor, err := db.Collection(collection).Aggregate(ctx, pipeline)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	// Menyimpan hasil agregasi ke dalam result
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(result); err != nil {
+			return err
+		}
+	}
+	return nil
+}

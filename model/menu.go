@@ -18,6 +18,15 @@ type Menu struct {
 	Image    string             `json:"image" bson:"image"`
 }
 
+type Rating struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	MenuID    primitive.ObjectID `bson:"menu_id" json:"menu_id"`                   // Referensi ke ID menu
+	UserID    primitive.ObjectID `bson:"user_id" json:"user_id"`                   // Referensi ke ID pengguna yang memberi rating
+	Rating    float64            `bson:"rating" json:"rating"`                     // Nilai rating (skala 1-5)
+	Review    string             `bson:"review,omitempty" json:"review,omitempty"` // Ulasan atau komentar
+	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`               // Waktu pemberian rating
+}
+
 type Toko struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	NamaToko     string             `bson:"nama_toko" json:"nama_toko"`

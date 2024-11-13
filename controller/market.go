@@ -341,8 +341,19 @@ func GetAllMarket(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateToko(respw http.ResponseWriter, req *http.Request) {
-	// Sederhanakan untuk testing, hapus validasi token
-	// payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Info = at.GetSecretFromHeader(req)
+			respn.Location = "Decode Token Error"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
 
 	tokoID := req.URL.Query().Get("id")
 	if tokoID == "" {
@@ -360,7 +371,6 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Langsung ambil data toko dari database
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
 	existingToko, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
@@ -371,55 +381,88 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Tidak perlu validasi form, langsung update
-	_ = req.ParseMultipartForm(10 << 20)
+	err = req.ParseMultipartForm(10 << 20)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal memproses form data"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
 
-	// Jika ada gambar, update; jika tidak, pakai gambar lama
+	// Update image if available
 	var gambarTokoURL = existingToko.GambarToko
 	file, header, err := req.FormFile("tokoImage")
 	if err == nil {
 		defer file.Close()
 		fileContent, err := io.ReadAll(file)
-		if err == nil {
-			hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
-			content, _, err := ghupload.GithubUpload(config.GHAccessToken, "Rolly Maulana Awangga", "awangga@gmail.com", fileContent, "gobizid", "img", "tokoImages/"+hashedFileName, true)
-			if err == nil {
-				gambarTokoURL = *content.Content.HTMLURL
-			}
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal membaca file"
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
 		}
+		hashedFileName := ghupload.CalculateHash(fileContent) + header.Filename[strings.LastIndex(header.Filename, "."):]
+		content, _, err := ghupload.GithubUpload(config.GHAccessToken, "Rolly Maulana Awangga", "awangga@gmail.com", fileContent, "gobizid", "img", "tokoImages/"+hashedFileName, true)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Gagal mengupload gambar ke GitHub"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusInternalServerError, respn)
+			return
+		}
+		gambarTokoURL = *content.Content.HTMLURL
 	}
 
-	// Ambil form values tanpa validasi yang rumit
+	// Collect form values and use existing values if new data is missing
 	namaToko := req.FormValue("nama_toko")
+	if namaToko == "" {
+		namaToko = existingToko.NamaToko
+	}
+
 	slug := req.FormValue("slug")
-	Category := req.FormValue("category_id")
+	if slug == "" {
+		slug = existingToko.Slug
+	}
+
+	categoryID := req.FormValue("category_id")
+	objectCategoryID, err := primitive.ObjectIDFromHex(categoryID)
+	if err != nil {
+		objectCategoryID = existingToko.Category.ID
+	}
+
 	street := req.FormValue("alamat.street")
+	if street == "" {
+		street = existingToko.Alamat.Street
+	}
+
 	province := req.FormValue("alamat.province")
+	if province == "" {
+		province = existingToko.Alamat.Province
+	}
+
 	city := req.FormValue("alamat.city")
+	if city == "" {
+		city = existingToko.Alamat.City
+	}
+
 	description := req.FormValue("alamat.description")
+	if description == "" {
+		description = existingToko.Alamat.Description
+	}
+
 	postalCode := req.FormValue("alamat.postal_code")
+	if postalCode == "" {
+		postalCode = existingToko.Alamat.PostalCode
+	}
+
 	latitudeStr := req.FormValue("latitude")
 	longitudeStr := req.FormValue("longitude")
-	openingHours := req.FormValue("opening_hours")
-
-	// Buat update data
-	updateData := bson.M{
-		"nama_toko":          namaToko,
-		"slug":               slug,
-		"category":           Category,
-		"alamat.street":      street,
-		"alamat.province":    province,
-		"alamat.city":        city,
-		"alamat.description": description,
-		"alamat.postal_code": postalCode,
-		"gambar_toko":        gambarTokoURL,
-	}
-
-	// Tambahkan koordinat jika ada
+	var location = existingToko.Location
 	if latitudeStr != "" && longitudeStr != "" {
 		latitude, _ := strconv.ParseFloat(latitudeStr, 64)
 		longitude, _ := strconv.ParseFloat(longitudeStr, 64)
-		location := []model.GeoJSONFeature{
+		location = []model.GeoJSONFeature{
 			{
 				Type: "Feature",
 				Geometry: model.GeoJSONGeometry{
@@ -428,22 +471,33 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 				},
 			},
 		}
-		updateData["location"] = location
 	}
 
-	// Tambahkan waktu buka jika ada
-	if openingHours != "" {
-		openCloseTimes := strings.Split(openingHours, " - ")
-		if len(openCloseTimes) == 2 {
-			openCloseMap := model.OpeningHours{
-				Opening: openCloseTimes[0],
-				Close:   openCloseTimes[1],
-			}
-			updateData["opening_hours"] = openCloseMap
+	openingHours := req.FormValue("opening_hours")
+	openCloseTimes := strings.Split(openingHours, " - ")
+	openCloseMap := existingToko.OpeningHours
+	if len(openCloseTimes) == 2 {
+		openCloseMap = model.OpeningHours{
+			Opening: openCloseTimes[0],
+			Close:   openCloseTimes[1],
 		}
 	}
 
-	// Lakukan update tanpa banyak validasi
+	// Update document
+	updateData := bson.M{
+		"nama_toko":          namaToko,
+		"slug":               slug,
+		"category":           objectCategoryID,
+		"alamat.street":      street,
+		"alamat.province":    province,
+		"alamat.city":        city,
+		"alamat.description": description,
+		"alamat.postal_code": postalCode,
+		"location":           location,
+		"gambar_toko":        gambarTokoURL,
+		"opening_hours":      openCloseMap,
+	}
+
 	update := bson.M{"$set": updateData}
 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "toko", filter, update)
 	if err != nil {
@@ -454,13 +508,14 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Respons sukses
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
+		"user":    payload.Alias,
 		"data": map[string]interface{}{
-			"nama_toko": namaToko,
-			"slug":      slug,
+			"nama_toko":   namaToko,
+			"slug":        slug,
+			"category_id": objectCategoryID.Hex(),
 			"alamat": map[string]interface{}{
 				"street":      street,
 				"province":    province,
@@ -469,6 +524,11 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 				"postal_code": postalCode,
 			},
 			"gambar_toko": gambarTokoURL,
+			"location":    location,
+			"opening_hours": map[string]string{
+				"opening": openCloseMap.Opening,
+				"close":   openCloseMap.Close,
+			},
 		},
 	}
 
