@@ -36,7 +36,7 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Data user tidak ditemukan"
-		respn.Response = err.Error() + "data user" + UserId.ID.Hex() + "data filter : " + fmt.Sprintf("%v", filter)
+		respn.Response = err.Error() + "data user" + UserId.ID.Hex() + "data filter : " + fmt.Sprintf("%v", filter) + "data payload" + fmt.Sprintf("%v", payload.Id)
 		at.WriteJSON(respw, http.StatusNotImplemented, respn)
 		return
 	}
