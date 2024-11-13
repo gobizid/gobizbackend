@@ -30,15 +30,12 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Ambil user berdasarkan nomor telepon dari payload
 	filter := bson.M{"phonenumber": payload.Id}
 
 	UserId, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
 	if err != nil {
 		var respn model.Response
-		IdUser := UserId.ID.Hex() // Mengambil ID user dalam format string Hex
-
-		// Menyertakan ID User dan informasi lainnya dalam respons error
+		IdUser := UserId.ID.Hex()
 		respn.Status = "Error: Data user tidak ditemukan"
 		respn.Response = err.Error() + " data filter: " + fmt.Sprintf("%v", filter) + " data payload: " + fmt.Sprintf("%v", payload.Id) + " ID user: " + IdUser
 		at.WriteJSON(respw, http.StatusNotImplemented, respn)
@@ -47,7 +44,6 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 
 	IdUser := UserId.ID
 
-	// Ambil `menuId` dari query parameter
 	menuIDStr := req.URL.Query().Get("menuId")
 	if menuIDStr == "" {
 		var respn model.Response
@@ -64,7 +60,6 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Parse request body untuk mendapatkan rating dan review
 	var ratingData struct {
 		Rating float64 `json:"rating"`
 		Review string  `json:"review"`
@@ -78,7 +73,6 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat rating baru
 	newRating := model.Rating{
 		ID:        primitive.NewObjectID(),
 		MenuID:    menuID,
@@ -88,7 +82,6 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 		Timestamp: time.Now(),
 	}
 
-	// Simpan rating ke koleksi `rating` menggunakan helper `InsertOneDoc`
 	_, err = atdb.InsertOneDoc(config.Mongoconn, "rating", newRating)
 	if err != nil {
 		var respn model.Response
@@ -120,7 +113,7 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	updateData := bson.M{"$set": bson.M{"rating": result.AverageRating}}
+	updateData := bson.M{"$set": bson.M{"rating": result.AverageRating, "ratingCount": result.RatingCount}}
 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": menuID}, updateData)
 	if err != nil {
 		var respn model.Response
