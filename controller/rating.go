@@ -31,12 +31,16 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Ambil user berdasarkan nomor telepon dari payload
-	filter := bson.M{"user.phonenumber": payload.Id}
+	filter := bson.M{"phonenumber": payload.Id}
+
 	UserId, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
 	if err != nil {
 		var respn model.Response
+		IdUser := UserId.ID.Hex() // Mengambil ID user dalam format string Hex
+
+		// Menyertakan ID User dan informasi lainnya dalam respons error
 		respn.Status = "Error: Data user tidak ditemukan"
-		respn.Response = err.Error() + "data user" + UserId.ID.Hex() + "data filter : " + fmt.Sprintf("%v", filter) + "data payload" + fmt.Sprintf("%v", payload.Id)
+		respn.Response = err.Error() + " data filter: " + fmt.Sprintf("%v", filter) + " data payload: " + fmt.Sprintf("%v", payload.Id) + " ID user: " + IdUser
 		at.WriteJSON(respw, http.StatusNotImplemented, respn)
 		return
 	}
