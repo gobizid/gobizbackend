@@ -373,7 +373,7 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 
 	var existingToko model.Toko
 	filter := bson.M{"_id": objectID}
-	_, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
+	existingToko, err = atdb.GetOneDoc[model.Toko](config.Mongoconn, "toko", filter)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Toko tidak ditemukan"
@@ -390,7 +390,8 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var gambarTokoURL string
+	// Update image if available
+	var gambarTokoURL = existingToko.GambarToko
 	file, header, err := req.FormFile("tokoImage")
 	if err == nil {
 		defer file.Close()
@@ -413,103 +414,88 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		gambarTokoURL = *content.Content.HTMLURL
 	}
 
+	// Collect form values and use existing values if new data is missing
 	namaToko := req.FormValue("nama_toko")
+	if namaToko == "" {
+		namaToko = existingToko.NamaToko
+	}
+
 	slug := req.FormValue("slug")
-	category := req.FormValue("category")
+	if slug == "" {
+		slug = existingToko.Slug
+	}
+
+	categoryID := req.FormValue("category_id")
+	objectCategoryID, err := primitive.ObjectIDFromHex(categoryID)
+	if err != nil {
+		objectCategoryID = existingToko.Category.ID
+	}
+
 	street := req.FormValue("alamat.street")
+	if street == "" {
+		street = existingToko.Alamat.Street
+	}
+
 	province := req.FormValue("alamat.province")
+	if province == "" {
+		province = existingToko.Alamat.Province
+	}
+
 	city := req.FormValue("alamat.city")
+	if city == "" {
+		city = existingToko.Alamat.City
+	}
+
 	description := req.FormValue("alamat.description")
+	if description == "" {
+		description = existingToko.Alamat.Description
+	}
+
 	postalCode := req.FormValue("alamat.postal_code")
+	if postalCode == "" {
+		postalCode = existingToko.Alamat.PostalCode
+	}
+
 	latitudeStr := req.FormValue("latitude")
-	longitudeStr := req.FormValue("longtitude")
-	openingHours := req.FormValue("opening_hours")
-
-	var location []map[string]interface{}
+	longitudeStr := req.FormValue("longitude")
+	var location = existingToko.Location
 	if latitudeStr != "" && longitudeStr != "" {
-		latitude, latErr := strconv.ParseFloat(latitudeStr, 64)
-		longitude, longErr := strconv.ParseFloat(longitudeStr, 64)
-		if latErr == nil && longErr == nil {
-			location = []map[string]interface{}{
-				{
-					"type":       "Feature",
-					"properties": map[string]interface{}{},
-					"geometry": map[string]interface{}{
-						"type":        "Point",
-						"coordinates": []float64{longitude, latitude},
-					},
+		latitude, _ := strconv.ParseFloat(latitudeStr, 64)
+		longitude, _ := strconv.ParseFloat(longitudeStr, 64)
+		location = []model.GeoJSONFeature{
+			{
+				Type: "Feature",
+				Geometry: model.GeoJSONGeometry{
+					Type:        "Point",
+					Coordinates: []float64{longitude, latitude},
 				},
-			}
+			},
 		}
 	}
 
-	var openCloseMap map[string]string
-	if openingHours != "" {
-		openCloseTimes := strings.Split(openingHours, " - ")
-		if len(openCloseTimes) == 2 {
-			openCloseMap = map[string]string{
-				"opening": openCloseTimes[0],
-				"close":   openCloseTimes[1],
-			}
+	openingHours := req.FormValue("opening_hours")
+	openCloseTimes := strings.Split(openingHours, " - ")
+	openCloseMap := existingToko.OpeningHours
+	if len(openCloseTimes) == 2 {
+		openCloseMap = model.OpeningHours{
+			Opening: openCloseTimes[0],
+			Close:   openCloseTimes[1],
 		}
 	}
 
-	objectCategoryID, err := primitive.ObjectIDFromHex(category)
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Kategori ID tidak valid"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
-	categoryDoc, err := atdb.GetOneDoc[model.Category](config.Mongoconn, "category", primitive.M{"_id": objectCategoryID})
-	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Kategori toko tidak ditemukan"
-		at.WriteJSON(respw, http.StatusNotFound, respn)
-		return
-	}
-
-	updateData := bson.M{}
-	if namaToko != "" {
-		updateData["nama_toko"] = namaToko
-	}
-	if slug != "" {
-		updateData["slug"] = slug
-	}
-	if category != "" {
-		updateData["category"] = categoryDoc
-	}
-	if street != "" {
-		updateData["alamat.street"] = street
-	}
-	if province != "" {
-		updateData["alamat.province"] = province
-	}
-	if city != "" {
-		updateData["alamat.city"] = city
-	}
-	if description != "" {
-		updateData["alamat.description"] = description
-	}
-	if postalCode != "" {
-		updateData["alamat.postal_code"] = postalCode
-	}
-	if gambarTokoURL != "" {
-		updateData["gambar_toko"] = gambarTokoURL
-	}
-	if len(location) > 0 {
-		updateData["location"] = location
-	}
-	if openCloseMap != nil {
-		updateData["opening_hours"] = openCloseMap
-	}
-
-	if len(updateData) == 0 {
-		var respn model.Response
-		respn.Status = "Error: Tidak ada data yang diupdate"
-		at.WriteJSON(respw, http.StatusNotModified, respn)
-		return
+	// Update document
+	updateData := bson.M{
+		"nama_toko":          namaToko,
+		"slug":               slug,
+		"category":           objectCategoryID,
+		"alamat.street":      street,
+		"alamat.province":    province,
+		"alamat.city":        city,
+		"alamat.description": description,
+		"alamat.postal_code": postalCode,
+		"location":           location,
+		"gambar_toko":        gambarTokoURL,
+		"opening_hours":      openCloseMap,
 	}
 
 	update := bson.M{"$set": updateData}
@@ -522,36 +508,30 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var filteredUsers []map[string]interface{}
-	for _, user := range existingToko.User {
-		filteredUsers = append(filteredUsers, map[string]interface{}{
-			"name":        user.Name,
-			"phonenumber": user.PhoneNumber,
-			"email":       user.Email,
-		})
-	}
-
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko berhasil diupdate",
+		"user":    payload.Alias,
 		"data": map[string]interface{}{
-			"nama":          payload.Alias,
-			"nama_toko":     updateData["nama_toko"],
-			"slug":          updateData["slug"],
-			"category":      updateData["category"],
-			"location":      updateData["location"],
-			"opening_hours": updateData["opening_hours"],
+			"nama_toko":   namaToko,
+			"slug":        slug,
+			"category_id": objectCategoryID.Hex(),
 			"alamat": map[string]interface{}{
-				"street":      updateData["alamat.street"],
-				"province":    updateData["alamat.province"],
-				"city":        updateData["alamat.city"],
-				"description": updateData["alamat.description"],
-				"postal_code": updateData["alamat.postal_code"],
+				"street":      street,
+				"province":    province,
+				"city":        city,
+				"description": description,
+				"postal_code": postalCode,
 			},
-			"gambar_toko": updateData["gambar_toko"],
-			"user":        filteredUsers,
+			"gambar_toko": gambarTokoURL,
+			"location":    location,
+			"opening_hours": map[string]string{
+				"opening": openCloseMap.Opening,
+				"close":   openCloseMap.Close,
+			},
 		},
 	}
+
 	at.WriteJSON(respw, http.StatusOK, response)
 }
 
