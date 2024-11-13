@@ -114,7 +114,7 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	updateData := bson.M{"$set": bson.M{"rating": result.AverageRating, "ratingCount": result.RatingCount}}
-	_, err = atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": menuID}, updateData)
+	_, err = atdb.UpdateOneElement(config.Mongoconn, "menu", bson.M{"_id": menuID}, updateData)
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengupdate rating menu"

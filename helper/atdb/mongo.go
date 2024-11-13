@@ -234,3 +234,17 @@ func AggregateDoc[T any](db *mongo.Database, collection string, pipeline mongo.P
 	}
 	return nil
 }
+
+func UpdateOneElement(db *mongo.Database, collection string, filter bson.M, updatefields bson.M) (updateresult *mongo.UpdateResult, err error) {
+	// Periksa bahwa `updatefields` berisi `$set`
+	updateresult, err = db.Collection(collection).UpdateOne(
+		context.TODO(),
+		filter,
+		bson.M{"$set": updatefields}, // Pastikan `$set` ada di sini
+		options.Update().SetUpsert(true),
+	)
+	if err != nil {
+		return
+	}
+	return
+}
