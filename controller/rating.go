@@ -20,7 +20,7 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	// Decode token untuk mendapatkan nomor telepon
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
 	if err != nil {
-		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
 		if err != nil {
 			var respn model.Response
 			respn.Status = "Error: Token Tidak Valid"
