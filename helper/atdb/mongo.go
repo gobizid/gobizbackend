@@ -238,11 +238,8 @@ func UpdateOneElement(db *mongo.Database, collection string, filter bson.M, upda
 	updateresult, err = db.Collection(collection).UpdateOne(
 		context.TODO(),
 		filter,
-		updatefields, // Pastikan `$set` diterapkan di sini tanpa mengulangi
+		updatefields, // `updatefields` sudah memiliki `$set`, jadi kita hanya menggunakannya langsung
 		options.Update().SetUpsert(true),
 	)
-	if err != nil {
-		return
-	}
-	return
+	return updateresult, err
 }
