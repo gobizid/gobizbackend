@@ -505,6 +505,13 @@ func UpdateToko(respw http.ResponseWriter, req *http.Request) {
 		updateData["opening_hours"] = openCloseMap
 	}
 
+	if len(updateData) == 0 {
+		var respn model.Response
+		respn.Status = "Error: Tidak ada data yang diupdate"
+		at.WriteJSON(respw, http.StatusNotModified, respn)
+		return
+	}
+
 	update := bson.M{"$set": updateData}
 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "toko", filter, update)
 	if err != nil {
