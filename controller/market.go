@@ -906,6 +906,18 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
 	latStr := req.URL.Query().Get("lat")
 	lonStr := req.URL.Query().Get("lon")
 	radiusStr := req.URL.Query().Get("radius")
