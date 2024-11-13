@@ -916,19 +916,19 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 
 	// Konversi latitude dan longitude ke float64
 	latitude, err := strconv.ParseFloat(latStr, 64)
-	if err != nil {
+	if err != nil || latitude < -90 || latitude > 90 {
 		var respn model.Response
 		respn.Status = "Error: Latitude tidak valid"
-		respn.Response = "Latitude harus berupa angka desimal"
+		respn.Response = "Latitude harus berupa angka desimal antara -90 dan 90"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
 	longitude, err := strconv.ParseFloat(lonStr, 64)
-	if err != nil {
+	if err != nil || longitude < -180 || longitude > 180 {
 		var respn model.Response
 		respn.Status = "Error: Longitude tidak valid"
-		respn.Response = "Longitude harus berupa angka desimal"
+		respn.Response = "Longitude harus berupa angka desimal antara -180 dan 180"
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
@@ -963,7 +963,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		"location.geometry.coordinates": bson.M{
 			"$geoWithin": bson.M{
 				"$centerSphere": []interface{}{
-					[]float64{longitude, latitude},
+					[]float64{longitude, latitude}, // Format [lon, lat]
 					radiusInRadians,
 				},
 			},
@@ -1006,18 +1006,14 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 	// Buat respons dengan toko yang ditemukan
 	var allMarkets []map[string]interface{}
 	for _, toko := range tokos {
-		location := []map[string]interface{}{
-			{
-				"type":       "Feature",
-				"properties": map[string]interface{}{},
-				"geometry": map[string]interface{}{
-					"type": "Point",
-					"coordinates": []map[string]float64{
-						{
-							"lat": toko.Location[0].Geometry.Coordinates[0].Lat,
-							"lon": toko.Location[0].Geometry.Coordinates[0].Lon,
-						},
-					},
+		location := map[string]interface{}{
+			"type":       "Feature",
+			"properties": map[string]interface{}{},
+			"geometry": map[string]interface{}{
+				"type": "Point",
+				"coordinates": []float64{
+					toko.Location[0].Geometry.Coordinates[0].Lon,
+					toko.Location[0].Geometry.Coordinates[0].Lat,
 				},
 			},
 		}
