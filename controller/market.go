@@ -906,13 +906,11 @@ func GetPageMenuByToko(respw http.ResponseWriter, req *http.Request) {
 }
 
 func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
-	// Ambil latitude, longitude, radius, dan unit dari query parameters
 	latStr := req.URL.Query().Get("lat")
 	lonStr := req.URL.Query().Get("lon")
 	radiusStr := req.URL.Query().Get("radius")
 	unit := req.URL.Query().Get("unit")
 
-	// Konversi latitude dan longitude ke float64
 	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil || latitude < -90 || latitude > 90 {
 		var respn model.Response
@@ -931,7 +929,6 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Konversi radius ke float64
 	radius, err := strconv.ParseFloat(radiusStr, 64)
 	if err != nil {
 		var respn model.Response
@@ -941,13 +938,12 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Pastikan unit radius adalah "m" atau "km"
 	var radiusInRadians float64
 	switch unit {
 	case "m":
-		radiusInRadians = radius / 6378000.0 // Mengonversi meter ke radian
+		radiusInRadians = radius / 6378000.0
 	case "km":
-		radiusInRadians = (radius * 1000) / 6378000.0 // Mengonversi kilometer ke radian
+		radiusInRadians = (radius * 1000) / 6378000.0
 	default:
 		var respn model.Response
 		respn.Status = "Error: Unit tidak valid"
@@ -956,12 +952,11 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Query geospasial untuk mencari toko di dalam radius
 	filter := bson.M{
 		"location.geometry.coordinates": bson.M{
 			"$geoWithin": bson.M{
 				"$centerSphere": []interface{}{
-					[]float64{longitude, latitude}, // Format [lon, lat]
+					[]float64{longitude, latitude},
 					radiusInRadians,
 				},
 			},
@@ -1001,17 +996,22 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Buat respons dengan toko yang ditemukan
 	var allMarkets []map[string]interface{}
+	tokoCounter := 1
 	for _, toko := range tokos {
+
+		coordinates := toko.Location[0].Geometry.Coordinates
+		longitude := coordinates[0]
+		latitude := coordinates[1]
+
 		location := map[string]interface{}{
 			"type":       "Feature",
 			"properties": map[string]interface{}{},
 			"geometry": map[string]interface{}{
 				"type": "Point",
-				"coordinates": []float64{
-					toko.Location[0].Geometry.Coordinates[0],
-					toko.Location[0].Geometry.Coordinates[0],
+				"coordinates": map[string]float64{
+					"latitude":  latitude,
+					"longitude": longitude,
 				},
 			},
 		}
@@ -1031,6 +1031,7 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 		}
 
 		allMarkets = append(allMarkets, map[string]interface{}{
+			"penanda_toko":  fmt.Sprintf("Toko %d", tokoCounter), // Penanda Toko
 			"id":            toko.ID.Hex(),
 			"nama_toko":     toko.NamaToko,
 			"slug":          toko.Slug,
@@ -1049,13 +1050,15 @@ func GetNearbyToko(respw http.ResponseWriter, req *http.Request) {
 			},
 			"user": filteredUsers,
 		})
+
+		tokoCounter++
 	}
 
-	// Kirim respons JSON dengan data toko yang ditemukan
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "Toko dalam radius ditemukan",
 		"data":    allMarkets,
 	}
 	at.WriteJSON(respw, http.StatusOK, response)
+
 }
