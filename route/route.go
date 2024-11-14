@@ -273,6 +273,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetUserByID(w, r)
 	case method == "PUT" && path == "/update/user-profile":
 		controller.UpdateProfile(w, r)
+	case method == "DELETE" && path == "/delete/user-profile":
+		controller.DeleteProfile(w, r)
 
 
 	default:
