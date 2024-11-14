@@ -16,6 +16,76 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
+	_, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		_, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	menuIDStr := req.URL.Query().Get("menuId")
+	if menuIDStr == "" {
+		var respn model.Response
+		respn.Status = "Error: Menu ID tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	menuID, err := primitive.ObjectIDFromHex(menuIDStr)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu ID tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.D{{Key: "menu_id", Value: menuID}}}},
+		{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: "user"},
+			{Key: "localField", Value: "user_id"},
+			{Key: "foreignField", Value: "_id"},
+			{Key: "as", Value: "user_info"},
+		}}},
+		{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$user_info"}, {Key: "preserveNullAndEmptyArrays", Value: true}}}},
+		{{Key: "$project", Value: bson.D{
+			{Key: "rating", Value: 1},
+			{Key: "review", Value: 1},
+			{Key: "timestamp", Value: 1},
+			{Key: "user_name", Value: "$user_info.name"}, // Menambahkan nama pengguna
+		}}},
+	}
+
+	var ratings []model.UserRating
+
+	err = atdb.AggregateDoc(config.Mongoconn, "rating", pipeline, &ratings)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengambil data rating"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	var respn model.Response
+	respn.Status = "success"
+	ratingsJSON, err := json.Marshal(ratings)
+	if err != nil {
+		respn.Status = "Error: Gagal mengkonversi data rating ke JSON"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+	respn.Response = string(ratingsJSON)
+	at.WriteJSON(respw, http.StatusOK, respn)
+}
+
 func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	// Decode token untuk mendapatkan nomor telepon
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))

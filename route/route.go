@@ -261,6 +261,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.AddRatingToMenu(w, r)
 	case method == "DELETE" && path == "/del/rating":
 		controller.DeleteRating(w, r)
+	case method == "GET" && path == "/get/rating":
+		controller.GetAllRatingByMenu(w, r)
 
 	default:
 		controller.NotFoundRoute(w, r)
