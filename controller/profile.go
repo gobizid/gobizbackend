@@ -178,9 +178,9 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	var request struct {
-		Name     string `json:"name,omitempty"`
-		Email    string `json:"email,omitempty"`
-		Password string `json:"password,omitempty"`
+		Name        string `json:"name,omitempty"`
+		Email       string `json:"email,omitempty"`
+		Password    string `json:"password,omitempty"`
 		OldPassword string `json:"old_password,omitempty"`
 	}
 
@@ -261,5 +261,80 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 }
 
 func DeleteProfile(respw http.ResponseWriter, req *http.Request) {
+	// Step 1: Ambil token dari header untuk memverifikasi identitas pengguna
+	tokenLogin := at.GetLoginFromHeader(req)
 
+	// Step 2: Decode token untuk mendapatkan informasi pengguna
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, tokenLogin)
+	if err != nil {
+		// Coba decode dengan kunci publik lain jika gagal
+		payload, err = watoken.Decode(config.PUBLICKEY, tokenLogin)
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error"
+			respn.Location = "Decode Token"
+			respn.Response = "Token tidak valid"
+			respn.Info = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	// Step 3: Ambil data pengguna berdasarkan phonenumber yang ada di token
+	phonenumber := payload.Id // Asumsinya `Id` berisi `phonenumber`
+	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": phonenumber})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error"
+		respn.Location = "Database Lookup"
+		respn.Response = "Pengguna tidak ditemukan"
+		respn.Info = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
+		return
+	}
+
+	// (Opsional) Step 4: Verifikasi password sebelum menghapus akun
+	var request struct {
+		Password string `json:"password,omitempty"`
+	}
+	
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		var respn model.Response
+		respn.Status = "Error"
+		respn.Response = "Failed to parse request body"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	if request.Password != "" {
+		err = bcrypt.CompareHashAndPassword([]byte(docuser.Password), []byte(request.Password))
+		if err != nil {
+			response := model.Response{
+				Status:   "Failed to verify password",
+				Response: "Password tidak valid",
+			}
+			at.WriteJSON(respw, http.StatusUnauthorized, response)
+			return
+		}
+	}
+
+	// Step 5: Hapus data pengguna dari database
+	_, err = atdb.DeleteOneDoc(config.Mongoconn, "user", primitive.M{"phonenumber": phonenumber})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error"
+		respn.Location = "Database Delete"
+		respn.Response = "Gagal menghapus akun pengguna"
+		respn.Info = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	// Step 6: Kirimkan respons sukses
+	response := model.Response{
+		Status:   "Success",
+		Response: "Akun berhasil dihapus",
+	}
+
+	at.WriteJSON(respw, http.StatusOK, response)
 }
