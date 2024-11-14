@@ -269,9 +269,9 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 
 	// Step 8: Kirimkan respons sukses
 	response := map[string]interface{}{
-		"message": "Profil pengguna berhasil diperbarui",
-		"name":    docuser.Name,
-		"email":   docuser.Email,
+		"message": "Profil dan password pengguna berhasil diperbarui",
+		"name":    request.Name,
+		"email":   request.Email,
 		"phone":   docuser.PhoneNumber,
 		"role":    docuser.Role,
 	}
