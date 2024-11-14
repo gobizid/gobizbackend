@@ -128,3 +128,98 @@ func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
 	respn.Response = "Rating berhasil ditambahkan dan rata-rata rating menu diperbarui"
 	at.WriteJSON(respw, http.StatusOK, respn)
 }
+
+func DeleteRating(respw http.ResponseWriter, req *http.Request) {
+	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, at.GetLoginFromHeader(req))
+	if err != nil {
+		payload, err = watoken.Decode(config.PUBLICKEY, at.GetLoginFromHeader(req))
+		if err != nil {
+			var respn model.Response
+			respn.Status = "Error: Token Tidak Valid"
+			respn.Response = err.Error()
+			at.WriteJSON(respw, http.StatusForbidden, respn)
+			return
+		}
+	}
+
+	filter := bson.M{"phonenumber": payload.Id}
+	UserId, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	menuIDStr := req.URL.Query().Get("menuId")
+	ratingIDStr := req.URL.Query().Get("ratingId")
+	if menuIDStr == "" || ratingIDStr == "" {
+		var respn model.Response
+		respn.Status = "Error: Menu ID atau Rating ID tidak ditemukan"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	menuID, err := primitive.ObjectIDFromHex(menuIDStr)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Menu ID tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	ratingID, err := primitive.ObjectIDFromHex(ratingIDStr)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Rating ID tidak valid"
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
+		return
+	}
+
+	_, err = atdb.DeleteOneDoc(config.Mongoconn, "rating", bson.M{"_id": ratingID, "menu_id": menuID, "user_id": UserId.ID})
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghapus rating"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.D{{Key: "menu_id", Value: menuID}}}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$menu_id"},
+			{Key: "averageRating", Value: bson.D{{Key: "$avg", Value: "$rating"}}},
+			{Key: "ratingCount", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+	}
+
+	var result struct {
+		AverageRating float64 `bson:"averageRating"`
+		RatingCount   int     `bson:"ratingCount"`
+	}
+	err = atdb.AggregateDoc(config.Mongoconn, "rating", pipeline, &result)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal menghitung rata-rata rating menu setelah penghapusan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	updateData := bson.M{"$set": bson.M{"rating": result.AverageRating, "ratingCount": result.RatingCount}}
+	_, err = atdb.UpdateOneDoc(config.Mongoconn, "menu", bson.M{"_id": menuID}, updateData)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Gagal mengupdate rating menu setelah penghapusan rating"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
+		return
+	}
+
+	var respn model.Response
+	respn.Status = "success"
+	respn.Response = "Rating berhasil dihapus dan rata-rata rating menu diperbarui"
+	at.WriteJSON(respw, http.StatusOK, respn)
+}
