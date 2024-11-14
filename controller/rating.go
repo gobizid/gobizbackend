@@ -58,7 +58,7 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 			{Key: "rating", Value: 1},
 			{Key: "review", Value: 1},
 			{Key: "timestamp", Value: 1},
-			{Key: "user_name", Value: "$user_info.name"}, // Menambahkan nama pengguna
+			{Key: "user_name", Value: "$user_info.name"},
 		}}},
 	}
 
@@ -68,7 +68,7 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengambil data rating"
-		respn.Response = err.Error()
+		respn.Response = err.Error() + "data rating :" + fmt.Sprintf("Ratings data retrieved: %+v", ratings)
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}

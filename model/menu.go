@@ -106,7 +106,7 @@ type Personalization struct {
 	UpdatedAt       time.Time          `bson:"updated_at" json:"updatedAt"`
 }
 
-type UserRating []struct {
+type UserRating struct {
 	Rating    float64   `bson:"rating" json:"rating"`
 	Review    string    `bson:"review" json:"review"`
 	Timestamp time.Time `bson:"timestamp" json:"timestamp"`
