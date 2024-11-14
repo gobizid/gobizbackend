@@ -150,7 +150,6 @@ func GetUserByID(respw http.ResponseWriter, req *http.Request) {
 }
 
 func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
-	// Step 1: Ambil token dari header untuk memverifikasi identitas pengguna
 	token := at.GetLoginFromHeader(req)
 	if token == "" {
 		var respn model.Response
@@ -160,10 +159,8 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Step 2: Decode token untuk mendapatkan informasi pengguna
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, token)
 	if err != nil {
-		// Coba decode dengan kunci publik lain jika gagal
 		payload, err = watoken.Decode(config.PUBLICKEY, token)
 		if err != nil {
 			var respn model.Response
@@ -176,8 +173,7 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Step 3: Ambil data pengguna berdasarkan phonenumber yang ada di token
-	phonenumber := payload.Id // Asumsinya `Id` berisi `phonenumber`
+	phonenumber := payload.Id
 	docuser, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", primitive.M{"phonenumber": phonenumber})
 	if err != nil {
 		var respn model.Response
@@ -189,15 +185,13 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Step 4: Decode data yang ingin diubah dari request body (update nama, email, password)
 	var request struct {
 		Name     string `json:"name,omitempty"`
 		Email    string `json:"email,omitempty"`
 		Password string `json:"password,omitempty"`
-		OldPassword string `json:"old_password,omitempty"` // Menambahkan field untuk password lama
+		OldPassword string `json:"old_password,omitempty"`
 	}
 
-	// Decode body request
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		var respn model.Response
 		respn.Status = "Error"
@@ -206,7 +200,6 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Step 5: Verifikasi password lama jika ada perubahan password
 	if request.Password != "" {
 		if request.OldPassword == "" {
 			var respn model.Response
@@ -241,7 +234,6 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		docuser.Password = hashedPassword
 	}
 
-	// Step 6: Update profil pengguna jika ada perubahan
 	updateFields := bson.M{}
 	if request.Name != "" {
 		updateFields["name"] = request.Name
@@ -250,12 +242,10 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		updateFields["email"] = request.Email
 	}
 
-	// Update password jika ada perubahan
 	if request.Password != "" {
-		updateFields["password"] = docuser.Password // Gunakan password yang sudah di-hash
+		updateFields["password"] = docuser.Password
 	}
 
-	// Step 7: Perbarui data pengguna di database
 	_, err = atdb.UpdateOneDoc(config.Mongoconn, "user", bson.M{"phonenumber": phonenumber}, updateFields)
 	if err != nil {
 		var respn model.Response
@@ -267,7 +257,6 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Step 8: Kirimkan respons sukses
 	response := map[string]interface{}{
 		"message": "Profil dan password pengguna berhasil diperbarui",
 		"name":    request.Name,
@@ -277,4 +266,8 @@ func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 	}
 
 	at.WriteJSON(respw, http.StatusOK, response)
+}
+
+func DeleteProfile(respw http.ResponseWriter, req *http.Request) {
+
 }
