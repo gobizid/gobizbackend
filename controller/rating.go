@@ -45,6 +45,7 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Mendapatkan semua rating untuk menu
 	var ratings []model.Rating
 	ratings, err = atdb.GetAllDoc[[]model.Rating](config.Mongoconn, "rating", bson.M{"menu_id": menuID})
 	if err != nil {
@@ -55,8 +56,10 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Menyusun hasil dengan nama pengguna
 	var userRatings []model.UserRating
 	for _, rating := range ratings {
+		// Mendapatkan nama pengguna berdasarkan user_id di setiap rating
 		var user model.Userdomyikado
 		filter := bson.M{"_id": rating.UserID}
 		user, err = atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
@@ -65,6 +68,7 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
+		// Menambahkan data rating dan nama pengguna ke daftar hasil
 		userRatings = append(userRatings, model.UserRating{
 			Rating:    rating.Rating,
 			Review:    rating.Review,
@@ -73,17 +77,13 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	var respn model.Response
-	respn.Status = "success"
-	responseData, err := json.Marshal(userRatings)
-	if err != nil {
-		respn.Status = "Error: Gagal mengkonversi data rating"
-		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
+	// Mengirim respons JSON terstruktur dengan daftar rating dan nama pengguna
+	respData := map[string]interface{}{
+		"status":   "success",
+		"response": userRatings,
 	}
-	respn.Response = string(responseData)
-	at.WriteJSON(respw, http.StatusOK, respn)
+	respw.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(respw).Encode(respData)
 }
 
 func AddRatingToMenu(respw http.ResponseWriter, req *http.Request) {
