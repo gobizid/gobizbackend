@@ -84,7 +84,6 @@ func GetAllUser(respw http.ResponseWriter, req *http.Request) {
 		Status:   "Success",
 		Response: "Data pengguna berhasil diambil",
 		Info:     "Profil pengguna ditemukan",
-		Location: "GetAllUser",
 	}
 
 	response := map[string]interface{}{
