@@ -39,7 +39,6 @@ func GetUserProfile(respw http.ResponseWriter, req *http.Request) {
 		Status:   "Success",
 		Response: "Data pengguna berhasil diambil",
 		Info:     "Profil pengguna ditemukan",
-		Location: "GetUserProfile",
 	}
 
 	// Menambahkan data pengguna ke dalam response
