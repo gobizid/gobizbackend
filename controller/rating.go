@@ -45,7 +45,8 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	DataMenu, err := atdb.GetAllDoc[model.Rating](config.Mongoconn, "rating", bson.M{"menu_id": menuID})
+	var ratings []model.Rating
+	ratings, err = atdb.GetAllDoc[[]model.Rating](config.Mongoconn, "rating", bson.M{"menu_id": menuID})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengambil data rating"
@@ -54,24 +55,34 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	IdUser := DataMenu.UserID
-	filter := bson.M{"_id": IdUser}
-	UserId, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
+	var userRatings []model.UserRating
+	for _, rating := range ratings {
+		var user model.Userdomyikado
+		filter := bson.M{"_id": rating.UserID}
+		user, err = atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
+		if err != nil {
+			fmt.Printf("Warning: User ID %v tidak ditemukan: %v\n", rating.UserID.Hex(), err)
+			continue
+		}
+
+		userRatings = append(userRatings, model.UserRating{
+			Rating:    rating.Rating,
+			Review:    rating.Review,
+			Timestamp: rating.Timestamp,
+			UserName:  user.Name,
+		})
+	}
+
+	var respn model.Response
+	respn.Status = "success"
+	responseData, err := json.Marshal(userRatings)
 	if err != nil {
-		var respn model.Response
-		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Status = "Error: Gagal mengkonversi data rating"
 		respn.Response = err.Error()
-		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
-
-	var respn = model.UserRating{
-		Rating:    DataMenu.Rating,
-		Review:    DataMenu.Review,
-		Timestamp: DataMenu.Timestamp,
-		UserName:  UserId.Name,
-	}
-
+	respn.Response = string(responseData)
 	at.WriteJSON(respw, http.StatusOK, respn)
 }
 
