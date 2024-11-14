@@ -122,7 +122,8 @@ func GetUserByID(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error : ID pengguna tidak valid"
-		at.WriteJSON(respw, http.StatusBadRequest, respw)
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
 
@@ -132,7 +133,8 @@ func GetUserByID(respw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: User tidak ditemukan"
-		at.WriteJSON(respw, http.StatusNotFound, respw)
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotFound, respn)
 		return
 	}
 
