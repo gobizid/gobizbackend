@@ -264,6 +264,11 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "GET" && path == "/get/rating":
 		controller.GetAllRatingByMenu(w, r)
 
+	// User Profile
+	case method == "GET" && path == "/get/user-profile":
+		controller.GetUserProfile(w, r)
+
+
 	default:
 		controller.NotFoundRoute(w, r)
 	}
