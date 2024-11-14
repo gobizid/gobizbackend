@@ -45,44 +45,33 @@ func GetAllRatingByMenu(respw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: bson.D{{Key: "menu_id", Value: menuID}}}},
-		{{Key: "$lookup", Value: bson.D{
-			{Key: "from", Value: "user"},
-			{Key: "localField", Value: "user_id"},
-			{Key: "foreignField", Value: "_id"},
-			{Key: "as", Value: "user_info"},
-		}}},
-		{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$user_info"}, {Key: "preserveNullAndEmptyArrays", Value: true}}}},
-		{{Key: "$project", Value: bson.D{
-			{Key: "rating", Value: 1},
-			{Key: "review", Value: 1},
-			{Key: "timestamp", Value: 1},
-			{Key: "user_name", Value: "$user_info.name"},
-		}}},
-	}
-
-	var ratings []model.UserRating
-
-	err = atdb.AggregateDoc(config.Mongoconn, "rating", pipeline, &ratings)
+	DataMenu, err := atdb.GetAllDoc[model.Rating](config.Mongoconn, "rating", bson.M{"menu_id": menuID})
 	if err != nil {
 		var respn model.Response
 		respn.Status = "Error: Gagal mengambil data rating"
-		respn.Response = err.Error() + "data rating :" + fmt.Sprintf("Ratings data retrieved: %+v", ratings)
-		at.WriteJSON(respw, http.StatusInternalServerError, respn)
-		return
-	}
-
-	var respn model.Response
-	respn.Status = "success"
-	ratingsJSON, err := json.Marshal(ratings)
-	if err != nil {
-		respn.Status = "Error: Gagal mengkonversi data rating ke JSON"
 		respn.Response = err.Error()
 		at.WriteJSON(respw, http.StatusInternalServerError, respn)
 		return
 	}
-	respn.Response = string(ratingsJSON)
+
+	IdUser := DataMenu.UserID
+	filter := bson.M{"_id": IdUser}
+	UserId, err := atdb.GetOneDoc[model.Userdomyikado](config.Mongoconn, "user", filter)
+	if err != nil {
+		var respn model.Response
+		respn.Status = "Error: Data user tidak ditemukan"
+		respn.Response = err.Error()
+		at.WriteJSON(respw, http.StatusNotImplemented, respn)
+		return
+	}
+
+	var respn = model.UserRating{
+		Rating:    DataMenu.Rating,
+		Review:    DataMenu.Review,
+		Timestamp: DataMenu.Timestamp,
+		UserName:  UserId.Name,
+	}
+
 	at.WriteJSON(respw, http.StatusOK, respn)
 }
 
