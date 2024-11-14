@@ -151,14 +151,6 @@ func GetUserByID(respw http.ResponseWriter, req *http.Request) {
 
 func UpdateProfile(respw http.ResponseWriter, req *http.Request) {
 	token := at.GetLoginFromHeader(req)
-	if token == "" {
-		var respn model.Response
-		respn.Status = "Error"
-		respn.Response = "Token tidak ditemukan di header"
-		at.WriteJSON(respw, http.StatusBadRequest, respn)
-		return
-	}
-
 	payload, err := watoken.Decode(config.PublicKeyWhatsAuth, token)
 	if err != nil {
 		payload, err = watoken.Decode(config.PUBLICKEY, token)
