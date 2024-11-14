@@ -269,6 +269,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.GetUserProfile(w, r)
 	case method == "GET" && path == "/get/all-user":
 		controller.GetAllUser(w, r)
+	case method == "GET" && path == "/get/user-id":
+		controller.GetUserByID(w, r)
 
 
 	default:
