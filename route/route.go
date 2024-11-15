@@ -278,7 +278,7 @@ func URL(w http.ResponseWriter, r *http.Request) {
 
 	// geo
 	case method == "POST" && path == "/geo":
-		controller.FindNearestRoad(w, r)
+		controller.FindShortestRoute(w, r)
 
 	default:
 		controller.NotFoundRoute(w, r)
