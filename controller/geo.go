@@ -5,8 +5,13 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/gocroot/config"
+	"github.com/gocroot/helper/at"
+	"github.com/gocroot/helper/atdb"
 	"github.com/gocroot/helper/geo"
 	"github.com/gocroot/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type RouteRequest struct {
@@ -98,4 +103,30 @@ func FindShortestRoute(respw http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(respw).Encode(response); err != nil {
 		http.Error(respw, "Unable to encode response", http.StatusInternalServerError)
 	}
+}
+
+func TestData(w http.ResponseWriter, req *http.Request) {
+	DataLokasi := req.URL.Query().Get("idLocation")
+	if DataLokasi == "" {
+		var respn *http.Response
+		respn.Status = "Error: ID Lokasi Tidak Ditemukan"
+		at.WriteJSON(w, http.StatusBadRequest, respn)
+		return
+	}
+
+	objectIdData, err := primitive.ObjectIDFromHex(DataLokasi)
+	if err != nil {
+		http.Error(w, "ID Lokasi Tidak Valid", http.StatusBadRequest)
+		return
+	}
+
+	filter := bson.M{"_id": objectIdData}
+
+	dataLocation, err := atdb.GetOneDoc[model.GeoData](config.MongoconnGeo, "geo", filter)
+	if err != nil {
+		http.Error(w, "Data Lokasi Tidak Ditemukan", http.StatusNotFound)
+		return
+	}
+
+	at.WriteJSON(w, http.StatusOK, dataLocation)
 }
