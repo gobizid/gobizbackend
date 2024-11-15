@@ -276,6 +276,9 @@ func URL(w http.ResponseWriter, r *http.Request) {
 	case method == "DELETE" && path == "/delete/user-profile":
 		controller.DeleteProfile(w, r)
 
+	// geo
+	case method == "POST" && path == "/geo":
+		controller.FindNearestRoad(w, r)
 
 	default:
 		controller.NotFoundRoute(w, r)
