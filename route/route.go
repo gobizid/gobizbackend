@@ -283,6 +283,8 @@ func URL(w http.ResponseWriter, r *http.Request) {
 		controller.TestData(w, r)
 	case method == "POST" && path == "/data/get/roads":
 		controller.GetRoads(w, r)
+	case method == "POST" && path == "/data/get/region":
+		controller.GetRegion(w, r)
 
 	default:
 		controller.NotFoundRoute(w, r)
