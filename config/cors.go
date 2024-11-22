@@ -8,6 +8,7 @@ import (
 var Origins = []string{
 	"https://kb.pd.my.id",
 	"https://go.biz.id",
+	"https://makanear.github.io",
 	"https://jual.in.my.id",
 	"http://127.0.0.1:5500",
 	"http://localhost:5173",
