@@ -19,7 +19,7 @@ var Mongoconn, ErrorMongoconn = atdb.MongoConnect(mongoinfo)
 
 var MongoInfoGeo = atdb.DBInfo{
 	DBString: MongoStringGeo,
-	DBName:   "geo",
+	DBName:   "ayala-crea",
 }
 
 var MongoconnGeo, ErrorMongoconnGeo = atdb.MongoConnect(MongoInfoGeo)
