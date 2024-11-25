@@ -158,9 +158,10 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
+	
 	filter := bson.M{
 		"geometry": bson.M{
-			"$near": bson.M{
+			"$nearSphere": bson.M{
 				"$geometry": bson.M{
 					"type":        "Point",
 					"coordinates": []float64{longlat.Longitude, longlat.Latitude},
@@ -169,6 +170,7 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
+
 	roads, err := atdb.GetAllDoc[[]model.Roads](config.MongoconnGeo, "geo", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, roads)
@@ -206,7 +208,7 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
-	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeo, "jalan", filter)
+	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeo, "geo", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, region)
 		return
