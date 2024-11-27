@@ -166,7 +166,7 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 					"type":        "Point",
 					"coordinates": []float64{longlat.Longitude, longlat.Latitude},
 				},
-				"$maxDistance": 300,
+				"$maxDistance": longlat.MaxDistance,
 			},
 		},
 	}

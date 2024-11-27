@@ -46,4 +46,5 @@ type Roads struct {
 type LongLat struct {
 	Longitude float64 `bson:"long" json:"long"`
 	Latitude  float64 `bson:"lat" json:"lat"`
+	MaxDistance  float64 `bson:"max_distance" json:"max_distance"`
 }
