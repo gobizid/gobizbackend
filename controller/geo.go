@@ -189,6 +189,7 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusForbidden, respn)
 		return
 	}
+
 	var longlat model.LongLat
 	err = json.NewDecoder(req.Body).Decode(&longlat)
 	if err != nil {
@@ -198,6 +199,8 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
+
+	// Query filter untuk MongoDB
 	filter := bson.M{
 		"border": bson.M{
 			"$geoIntersects": bson.M{
@@ -208,10 +211,28 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
+
 	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeoVill, "map", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, region)
 		return
 	}
-	at.WriteJSON(respw, http.StatusOK, region)
+
+	// Bentuk respon GeoJSON
+	geoJSON := bson.M{
+		"type": "Feature",
+		"geometry": bson.M{
+			"type":        region.Border.Type,
+			"coordinates": region.Border.Coordinates,
+		},
+		"properties": bson.M{
+			"province":     region.Province,
+			"district":     region.District,
+			"sub_district": region.SubDistrict,
+			"village":      region.Village,
+		},
+	}
+
+	// Kirim respon sebagai GeoJSON
+	at.WriteJSON(respw, http.StatusOK, geoJSON)
 }
