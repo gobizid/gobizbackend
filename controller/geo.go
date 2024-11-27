@@ -176,6 +176,25 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusNotFound, roads)
 		return
 	}
+
+	geoJSON := bson.M{
+		"type": "FeatureCollection",
+		"features": []bson.M{
+			{
+				"type": "Feature",
+				"geometry": bson.M{
+					"type":        roads.Type,
+					"coordinates": roads.Geometry.Coordinates,
+				},
+				"properties": bson.M{
+					"osm_id":     roads.OsmID,
+					"name":     roads.Name,
+					"highway": roads.Highway,
+				},
+			},
+		},
+	}
+
 	at.WriteJSON(respw, http.StatusOK, roads)
 }
 
