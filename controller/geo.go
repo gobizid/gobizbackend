@@ -158,7 +158,7 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 		at.WriteJSON(respw, http.StatusBadRequest, respn)
 		return
 	}
-
+	
 	filter := bson.M{
 		"geometry": bson.M{
 			"$nearSphere": bson.M{
@@ -171,40 +171,13 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 		},
 	}
 
-	// Ambil data dari MongoDB
-	_, err = atdb.GetAllDoc[[]model.Roads](config.MongoconnGeo, "jalan", filter)
+	roads, err := atdb.GetAllDoc[[]model.Roads](config.MongoconnGeo, "jalan", filter)
 	if err != nil {
-		at.WriteJSON(respw, http.StatusNotFound, nil)
+		at.WriteJSON(respw, http.StatusNotFound, roads)
 		return
 	}
-
-	// Konversi ke format GeoJSON
-	geoJSON := map[string]interface{}{
-		"type":     "FeatureCollection",
-		"features": []map[string]interface{}{},
-	}
-
-	var roads []model.Roads
-	for _, road := range roads {
-		feature := map[string]interface{}{
-			"type": "Feature",
-			"geometry": map[string]interface{}{
-				"type":        road.Geometry.Type,
-				"coordinates": road.Geometry.Coordinates,
-			},
-			"properties": map[string]interface{}{
-				"osm_id":   road.Properties.OsmID,
-				"name":     road.Properties.Name,
-				"highway":  road.Properties.Highway,
-			},
-		}
-		geoJSON["features"] = append(geoJSON["features"].([]map[string]interface{}), feature)
-	}
-
-	// Kirimkan GeoJSON sebagai respons
-	at.WriteJSON(respw, http.StatusOK, geoJSON)
+	at.WriteJSON(respw, http.StatusOK, roads)
 }
-
 
 func GetRegion(respw http.ResponseWriter, req *http.Request) {
 	// Dekode token untuk autentikasi
