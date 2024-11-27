@@ -171,7 +171,7 @@ func GetRoads(respw http.ResponseWriter, req *http.Request) {
 		},
 	}
 
-	roads, err := atdb.GetAllDoc[[]model.Roads](config.MongoconnGeo, "geo", filter)
+	roads, err := atdb.GetAllDoc[[]model.Roads](config.MongoconnGeo, "jalan", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, roads)
 		return
@@ -208,7 +208,7 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
-	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeo, "jalan", filter)
+	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeo, "geo", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, region)
 		return
