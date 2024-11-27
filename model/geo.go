@@ -27,13 +27,18 @@ type Properties struct {
 	Highway string `json:"highway"`
 }
 
+type Location struct {
+	Type        string        `bson:"type" json:"type"`
+	Coordinates [][][]float64 `bson:"coordinates" json:"coordinates"`
+}
+
 type Region struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Province    string             `bson:"province" json:"province"`
 	District    string             `bson:"district" json:"district"`
 	SubDistrict string             `bson:"sub_district" json:"sub_district"`
 	Village     string             `bson:"village" json:"village"`
-	Border      Geometry	           `bson:"border" json:"border"`
+	Border      Location           `bson:"border" json:"border"`
 }
 
 type Roads struct {
