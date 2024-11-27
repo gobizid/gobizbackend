@@ -208,7 +208,7 @@ func GetRegion(respw http.ResponseWriter, req *http.Request) {
 			},
 		},
 	}
-	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeo, "geo", filter)
+	region, err := atdb.GetOneDoc[model.Region](config.MongoconnGeoVill, "geo", filter)
 	if err != nil {
 		at.WriteJSON(respw, http.StatusNotFound, region)
 		return
