@@ -34,7 +34,7 @@ jobs:
             --runtime=go122 \
             --trigger-http \
             --timeout=540s \
-            --set-env-vars MONGOSTRING='${{ secrets.MONGOSTRING }}',PHONENUMBER='${{ secrets.PHONENUMBER }}',GH_ACCESS_TOKEN='${{ secrets.GH_ACCESS_TOKEN }}'
+            --set-env-vars MONGOSTRING='${{ secrets.MONGOSTRING }}',MONGOSTRINGGEO='${{ secrets.MONGOSTRINGGEO }}',MONGOSTRINGGEOVILLAGE='${{ secrets.MONGOSTRINGGEOVILLAGE }}',PHONENUMBER='${{ secrets.PHONENUMBER }}',GH_ACCESS_TOKEN='${{ secrets.GH_ACCESS_TOKEN }}'
       - name: 'Cek eksistensi fungsi'
         run: 'gcloud functions describe jualin --region=asia-southeast2'
       - name: 'Cek log debugging'

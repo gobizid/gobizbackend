@@ -8,9 +8,9 @@ import (
 
 var MongoString string = os.Getenv("MONGOSTRING")
 
-var MongoStringGeo string = "mongodb+srv://ayalarifki:Edqt6j5LplXRs5OH@appabsensi.lnfmk5s.mongodb.net/"
+var MongoStringGeo string = os.Getenv("MONGOSTRINGGEO")
 
-var MongoStringGeoVillage string = "mongodb+srv://farhan350411:Ge3S8IS6qP6gT3CC@cluster0.vyo74.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+var MongoStringGeoVillage string = os.Getenv("MONGOSTRINGGEOVILLAGE")
 
 var mongoinfo = atdb.DBInfo{
 	DBString: MongoString,
